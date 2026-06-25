@@ -1,3 +1,4 @@
+using UnityEngine;
 
 namespace ReplicaProjects.Arrows
 {
@@ -10,24 +11,25 @@ namespace ReplicaProjects.Arrows
     public class GridOrchestrator
     {
         private bool[] _gridData;
-
-        private GridOrchestratorModel _model;
+        public GridOrchestratorModel model;
 
         public void Initialize(GridOrchestratorModel model)
         {
-            _model = model;
-            _gridData = new bool[model.height * model.height];
+            this.model = model;
+            _gridData = new bool[model.width * model.height];
         }
 
         public void DeInitialize()
         {
-            _model = null;
+            model = null;
             _gridData = null;
         }
 
+        public int Lenght() => _gridData.Length;
+
         public void Set(int x, int y, bool value)
         {
-            var index = y * _model.width + x;
+            var index = GridMath.CoordinatesToIndex(x, y, model.width);
 
             if (!IsInBounds(index))
                 return;
@@ -37,14 +39,18 @@ namespace ReplicaProjects.Arrows
 
         public bool IsEmpty(int x, int y)
         {
-            var index = y * _model.width + x;
-         
-            return IsInBounds(index) && _gridData[index];
+            var index = GridMath.CoordinatesToIndex(x, y, model.width);
+
+            return IsInBounds(index) && !_gridData[index];
         }
 
         public bool IsInBounds(int index)
         {
-            return _gridData.Length > 0 && _gridData.Length < index;
+            return GridMath.IsInBounds(index, _gridData.Length);
         }
+
+        public Vector2Int IndexToCoordinates(int index) => GridMath.IndexToCoordinates(index, model.width);
+
+        public int CoordinatesToIndex(Vector2Int coordinates) => GridMath.CoordinatesToIndex(coordinates.x, coordinates.y, model.width);
     }
 }
