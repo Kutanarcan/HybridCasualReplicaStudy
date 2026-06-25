@@ -26,10 +26,10 @@ namespace ReplicaProjects.Arrows
                 }
             }
 
-            AnimateDots(new List<int>()
-            {
-               0,1,2,3,4
-            });
+            //AnimateDots(new List<int>()
+            //{
+            //   0,1,2,3,4
+            //});
         }
 
         public void DeInitialize()
