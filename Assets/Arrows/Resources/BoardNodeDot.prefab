@@ -11,7 +11,7 @@ GameObject:
   - component: {fileID: 8054199314798451651}
   - component: {fileID: 1741341651784781835}
   m_Layer: 0
-  m_Name: GridNodeDot
+  m_Name: BoardNodeDot
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0

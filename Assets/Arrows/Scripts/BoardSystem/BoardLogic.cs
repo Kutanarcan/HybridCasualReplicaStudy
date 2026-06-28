@@ -24,5 +24,18 @@ namespace ReplicaProjects.Arrows
 
             return result;
         }
+
+        public BoardCornerEvaluateResult IsAtCorner(BoardCornerEvaluateInput input)
+        {
+
+
+            return new BoardCornerEvaluateResult();
+        }
+
+        public BoardIntersectionEvaluateResult IsAtCorner(BoardIntersectionEvaluateInput input)
+        {
+
+            return new BoardIntersectionEvaluateResult();
+        }
     }
 }

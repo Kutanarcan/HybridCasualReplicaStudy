@@ -10,23 +10,21 @@ namespace ReplicaProjects.Arrows
         private readonly GridOrchestrator _gridOrchestrator = new();
         private readonly BoardOrchestrator _boardOrchestrator = new();
 
-        private GridPresentation _gridPresentation;
         private BoardPresentation _boardPresentation;
-
+        private Selection _selection;
         private void Awake()
         {
             Create();
             Initialize();
             InitializePresentation();
+            InitializeSelection();
             AdjustCamera(width, height);
         }
 
         private void Create()
         {
-            var gridPresentationPrefab = ArrowsReplicaAssetDatabase.GridPresentationPrefab;
             var boardPresentationPrefab = ArrowsReplicaAssetDatabase.BoardPresentationPrefab;
 
-            _gridPresentation = Instantiate(gridPresentationPrefab);
             _boardPresentation = Instantiate(boardPresentationPrefab);
         }
 
@@ -38,13 +36,11 @@ namespace ReplicaProjects.Arrows
                 height = height,
             });
 
-            _boardOrchestrator.Initialize(_gridOrchestrator, 5);
+            _boardOrchestrator.Initialize(width, height, 5);
         }
 
         private void InitializePresentation()
         {
-            _gridPresentation.Initialize(width, height);
-
             var boardItemDataList = new List<BoardItemData>();
 
             foreach (var headIndex in _boardOrchestrator.dataArrays.headIndexArray)
@@ -84,6 +80,23 @@ namespace ReplicaProjects.Arrows
 
             camera.transform.position = cameraPosition;
             camera.orthographicSize = size;
+        }
+
+        private void InitializeSelection()
+        {
+            _selection = gameObject.AddComponent<Selection>();
+            _selection.Initialize(Camera.main);
+            _selection.OnNodeSelected += OnNodeSelected;
+        }
+
+        private void OnNodeSelected(Vector2Int coordinate)
+        {
+            if (coordinate.x < 0 || coordinate.x >= width ||
+                coordinate.y < 0 || coordinate.y >= height)
+                return;
+
+            var index = _gridOrchestrator.CoordinatesToIndex(coordinate);
+            Debug.Log($"Selected node {index} at {coordinate}");
         }
     }
 }

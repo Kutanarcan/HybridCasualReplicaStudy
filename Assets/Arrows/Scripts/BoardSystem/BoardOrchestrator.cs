@@ -14,6 +14,9 @@ namespace ReplicaProjects.Arrows
 
     public struct BoardDataArrays
     {
+        public int height;
+        public int width;
+
         public int[] headIndexArray;
         public Direction[] directionArray;
         public int[] chunkIndexArray;
@@ -21,16 +24,28 @@ namespace ReplicaProjects.Arrows
 
     public class BoardOrchestrator
     {
+        private readonly List<Direction> _directions = new List<Direction>()
+        {
+            Direction.Up,
+            Direction.Down,
+            Direction.Left,
+            Direction.Right
+        };
+
         private Dictionary<int, int[]> _chunkMap;
         private BoardLogic _boardLogic;
         public BoardDataArrays dataArrays;
 
-        public void Initialize(GridOrchestrator gridOrchestrator, int headCount)
+        public void Initialize(int width, int height, int headCount)
         {
-            var gridLenght = gridOrchestrator.Lenght();
             _boardLogic = new BoardLogic();
             dataArrays = new BoardDataArrays();
             _chunkMap = new Dictionary<int, int[]>();
+
+            dataArrays.height = height;
+            dataArrays.width = width;
+
+            var gridLenght = width * height;
 
             dataArrays.headIndexArray = _boardLogic.PickRandomArray(new PickRandomArrayInput()
             {
@@ -40,9 +55,27 @@ namespace ReplicaProjects.Arrows
 
             dataArrays.directionArray = new Direction[gridLenght];
 
-            foreach (var headIndex in dataArrays.headIndexArray)
+            //foreach (var headIndex in dataArrays.headIndexArray)
+            //{
+            //    dataArrays.directionArray[headIndex] = (Direction)Random.Range(1, 5);
+            //}
+
+            SelectDirection();
+        }
+
+        private void SelectDirection()
+        {
+            HashSet<Direction> directions = new();
+
+            for (int i = 0; i < dataArrays.headIndexArray.Length; i++)
             {
-                dataArrays.directionArray[headIndex] = (Direction)Random.Range(1, 5);
+                directions.Clear();
+                directions.AddRange(_directions);
+
+                for (int j = i + 1; j < dataArrays.headIndexArray.Length; j++)
+                {
+
+                }
             }
         }
 

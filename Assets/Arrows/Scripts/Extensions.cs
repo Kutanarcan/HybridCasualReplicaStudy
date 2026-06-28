@@ -1,9 +1,44 @@
-﻿using UnityEngine;
+﻿using System.Collections.Generic;
+using UnityEngine;
 
 namespace ReplicaProjects.Arrows
 {
     public static class Extensions
     {
+        public static void RemoveRange(this HashSet<Direction> hashSet, List<Direction> directions)
+        {
+            if (directions == null)
+                return;
+
+            foreach (var direction in directions)
+            {
+                hashSet.Remove(direction);
+            }
+        }
+
+
+        public static void AddRange(this HashSet<Direction> hashSet, List<Direction> directions)
+        {
+            if (directions == null)
+                return;
+
+            foreach (var direction in directions)
+            {
+                hashSet.Add(direction);
+            }
+        }
+
+        public static void AddRange(this HashSet<Direction> hashSet, Direction[] directions)
+        {
+            if (directions == null)
+                return;
+
+            foreach (var direction in directions)
+            {
+                hashSet.Add(direction);
+            }
+        }
+
         public static Direction ToDirection(this Vector2Int vector)
         {
             if (vector == Vector2Int.left)
