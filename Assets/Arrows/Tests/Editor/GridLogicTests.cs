@@ -77,5 +77,43 @@ namespace ReplicaProjects.Arrows.Tests
 
             Assert.IsFalse(_gridLogic.IsEmpty(input));
         }
+
+        [Test]
+        public void CellsAhead_AllDirections_From2x3_In5x5()
+        {
+            var from = new Vector2Int(2, 3);
+            Assert.AreEqual(2, _gridLogic.CellsAhead(from, Direction.Right, 5, 5));
+            Assert.AreEqual(2, _gridLogic.CellsAhead(from, Direction.Left,  5, 5));
+            Assert.AreEqual(1, _gridLogic.CellsAhead(from, Direction.Up,    5, 5));
+            Assert.AreEqual(3, _gridLogic.CellsAhead(from, Direction.Down,  5, 5));
+        }
+
+        [Test]
+        public void CellsAhead_EdgeRight_ReturnsZero()
+        {
+            Assert.AreEqual(0, _gridLogic.CellsAhead(new Vector2Int(4, 3), Direction.Right, 5, 5));
+        }
+
+        [Test]
+        public void IsPathClear_EmptyGrid_ReturnsTrue()
+        {
+            var gridData = new bool[25];
+            Assert.IsTrue(_gridLogic.IsPathClear(gridData, new Vector2Int(2, 3), Direction.Right, 5, 5));
+        }
+
+        [Test]
+        public void IsPathClear_BlockedCell_ReturnsFalse()
+        {
+            var gridData = new bool[25];
+            gridData[_gridLogic.CoordinatesToIndex(4, 3, 5)] = true;
+            Assert.IsFalse(_gridLogic.IsPathClear(gridData, new Vector2Int(2, 3), Direction.Right, 5, 5));
+        }
+
+        [Test]
+        public void IsPathClear_AtEdge_ZeroSteps_ReturnsTrue()
+        {
+            var gridData = new bool[25];
+            Assert.IsTrue(_gridLogic.IsPathClear(gridData, new Vector2Int(4, 3), Direction.Right, 5, 5));
+        }
     }
 }

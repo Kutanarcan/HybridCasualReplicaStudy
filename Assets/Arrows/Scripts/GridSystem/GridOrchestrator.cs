@@ -56,5 +56,8 @@ namespace ReplicaProjects.Arrows
         public Vector2Int IndexToCoordinates(int index) => _gridLogic.IndexToCoordinates(index, model.width);
 
         public int CoordinatesToIndex(Vector2Int coordinates) => _gridLogic.CoordinatesToIndex(coordinates.x, coordinates.y, model.width);
+
+        public bool IsPathClear(Vector2Int from, Direction direction) =>
+            _gridLogic.IsPathClear(_gridData, from, direction, model.width, model.height);
     }
 }

@@ -53,16 +53,16 @@ MonoBehaviour:
     Description: Line of sight Implementation
     Type: 1
     Estimation: 2
-    Progress: 0
+    Progress: 2
     Subtasks: []
-  - Id: 7
-    Description: Heart System
+  - Id: 8
+    Description: Empty Grid By Selection and Refresh Board
     Type: 1
     Estimation: 2
     Progress: 0
     Subtasks: []
-  - Id: 8
-    Description: Empty Grid By Selection and Refresh Board
+  - Id: 7
+    Description: Heart System
     Type: 1
     Estimation: 2
     Progress: 0

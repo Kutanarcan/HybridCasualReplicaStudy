@@ -9,8 +9,7 @@ namespace ReplicaProjects.Arrows
 
         private int width, height;
 
-        private readonly GridOrchestrator _gridOrchestrator = new();
-        private readonly BoardOrchestrator _boardOrchestrator = new();
+        private readonly BoardController _boardController = new();
 
         private BoardPresentation _boardPresentation;
         private Selection _selection;
@@ -35,29 +34,25 @@ namespace ReplicaProjects.Arrows
             width = _level.width;
             height = _level.height;
 
-            _gridOrchestrator.Initialize(new GridOrchestratorModel()
-            {
-                width = width,
-                height = height,
-            });
-
-            _boardOrchestrator.Initialize(_level);
+            _boardController.Initialize(_level);
         }
 
         private void InitializePresentation()
         {
             var boardItemDataList = new List<BoardItemData>();
+            var board = _boardController.Board;
+            var grid = _boardController.Grid;
 
-            foreach (var headIndex in _boardOrchestrator.dataArrays.headIndexArray)
+            foreach (var headIndex in board.dataArrays.headIndexArray)
             {
                 boardItemDataList.Add(new BoardItemData()
                 {
-                    coordinates = _gridOrchestrator.IndexToCoordinates(headIndex),
-                    direction = _boardOrchestrator.dataArrays.directionArray[headIndex],
+                    coordinates = grid.IndexToCoordinates(headIndex),
+                    direction = board.dataArrays.directionArray[headIndex],
                     type = BoardItemType.Arrow
                 });
 
-                int[] lineChunk = _boardOrchestrator.GetLineChuck(headIndex);
+                int[] lineChunk = board.GetLineChuck(headIndex);
 
                 if (lineChunk == null)
                     continue;
@@ -66,8 +61,8 @@ namespace ReplicaProjects.Arrows
                 {
                     boardItemDataList.Add(new BoardItemData()
                     {
-                        coordinates = _gridOrchestrator.IndexToCoordinates(chunkIndex),
-                        direction = _boardOrchestrator.dataArrays.directionArray[chunkIndex],
+                        coordinates = grid.IndexToCoordinates(chunkIndex),
+                        direction = board.dataArrays.directionArray[chunkIndex],
                         type = BoardItemType.Line
                     });
                 }
@@ -100,8 +95,7 @@ namespace ReplicaProjects.Arrows
                 coordinate.y < 0 || coordinate.y >= height)
                 return;
 
-            var index = _gridOrchestrator.CoordinatesToIndex(coordinate);
-            Debug.Log($"Selected node {index} at {coordinate}");
+            Debug.Log($"Selected {coordinate} full={!_boardController.IsEmpty(coordinate)}");
         }
     }
 }
