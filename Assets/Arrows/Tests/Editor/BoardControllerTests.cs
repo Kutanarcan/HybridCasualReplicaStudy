@@ -53,8 +53,7 @@ namespace ReplicaProjects.Arrows.Tests
             var level = MakeLevel(5, 5, (1, 2, Direction.Right));
             _controller.Initialize(level);
 
-            int headIndex = _controller.Grid.CoordinatesToIndex(new Vector2Int(1, 2));
-            Assert.IsTrue(_controller.IsHeadPathClear(headIndex));
+            Assert.IsTrue(_controller.IsPathClear(new Vector2Int(1, 2)));
         }
 
         [Test]
@@ -64,8 +63,7 @@ namespace ReplicaProjects.Arrows.Tests
             var level = MakeLevel(5, 5, (1, 2, Direction.Right), (3, 2, Direction.Left));
             _controller.Initialize(level);
 
-            int headIndex = _controller.Grid.CoordinatesToIndex(new Vector2Int(1, 2));
-            Assert.IsFalse(_controller.IsHeadPathClear(headIndex));
+            Assert.IsFalse(_controller.IsPathClear(new Vector2Int(1, 2)));
         }
     }
 }

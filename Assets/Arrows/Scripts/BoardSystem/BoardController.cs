@@ -37,6 +37,13 @@ namespace ReplicaProjects.Arrows
             }
         }
 
+        public void RemoveAtCoordinate(Vector2Int coordinates)
+        {
+            _grid.Set(coordinates.x, coordinates.y, false);
+
+            _board.RemoveChuck(_grid.CoordinatesToIndex(coordinates));
+        }
+
         private void SetOccupied(int index)
         {
             var coord = _grid.IndexToCoordinates(index);
@@ -44,12 +51,13 @@ namespace ReplicaProjects.Arrows
         }
 
         public bool IsEmpty(Vector2Int coordinate) => _grid.IsEmpty(coordinate.x, coordinate.y);
+        public bool IsInBounds(Vector2Int coordinate) => _grid.IsInBounds(coordinate);
 
-        public bool IsHeadPathClear(int headIndex)
+        public bool IsPathClear(Vector2Int coordinates)
         {
-            var coord = _grid.IndexToCoordinates(headIndex);
-            var direction = _board.dataArrays.directionArray[headIndex];
-            return _grid.IsPathClear(coord, direction);
+            var index = _grid.CoordinatesToIndex(coordinates);
+            var direction = _board.dataArrays.directionArray[index];
+            return _grid.IsPathClear(coordinates, direction);
         }
     }
 }

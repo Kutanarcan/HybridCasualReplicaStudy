@@ -10,9 +10,15 @@ namespace ReplicaProjects.Arrows
         private int width, height;
 
         private readonly BoardController _boardController = new();
+        private readonly HealthOrchestrator _healthOrchestrator = new();
 
         private BoardPresentation _boardPresentation;
+        private HealthPresentation _healthPresentation;
+
         private Selection _selection;
+
+        private const int MAX_HEALTH = 3;
+
         private void Awake()
         {
             Create();
@@ -25,8 +31,10 @@ namespace ReplicaProjects.Arrows
         private void Create()
         {
             var boardPresentationPrefab = ArrowsReplicaAssetDatabase.BoardPresentationPrefab;
+            var healthPresentationPrefab = ArrowsReplicaAssetDatabase.HealthPresentationPrefab;
 
             _boardPresentation = Instantiate(boardPresentationPrefab);
+            _healthPresentation = Instantiate(healthPresentationPrefab);
         }
 
         private void Initialize()
@@ -35,6 +43,24 @@ namespace ReplicaProjects.Arrows
             height = _level.height;
 
             _boardController.Initialize(_level);
+            _healthOrchestrator.Initialize(MAX_HEALTH);
+            _healthOrchestrator.Died += OnFinishedWithLose;
+            _boardController.Board.NoHeadLeft += OnFinishedWithVictory;
+        }
+
+
+        private void DeInitialize()
+        {
+
+        }
+
+        private void OnFinishedWithLose()
+        {
+            // TODO: Show Lose Screen
+        }
+        private void OnFinishedWithVictory()
+        {
+            // TODO: Show Victory Screen
         }
 
         private void InitializePresentation()
@@ -69,6 +95,8 @@ namespace ReplicaProjects.Arrows
             }
 
             _boardPresentation.Initialize(boardItemDataList);
+            _healthPresentation.Initialize(_healthOrchestrator.currentHealth);
+
         }
 
         private void AdjustCamera(int width, int height)
@@ -89,13 +117,25 @@ namespace ReplicaProjects.Arrows
             _selection.OnNodeSelected += OnNodeSelected;
         }
 
-        private void OnNodeSelected(Vector2Int coordinate)
+        private void OnNodeSelected(Vector2Int coordinates)
         {
-            if (coordinate.x < 0 || coordinate.x >= width ||
-                coordinate.y < 0 || coordinate.y >= height)
+            if (coordinates.x < 0 || coordinates.x >= width ||
+                coordinates.y < 0 || coordinates.y >= height)
                 return;
 
-            Debug.Log($"Selected {coordinate} full={!_boardController.IsEmpty(coordinate)}");
+            if (_boardController.IsEmpty(coordinates))
+                return;
+
+            if (_boardController.IsPathClear(coordinates))
+            {
+                _boardController.RemoveAtCoordinate(coordinates);
+                _boardPresentation.EmptyAtCoordinate(coordinates);
+            }
+            else
+            {
+                _healthOrchestrator.DecreaseHealth();
+                _healthPresentation.SetHealthAmount(_healthOrchestrator.currentHealth);
+            }
         }
     }
 }

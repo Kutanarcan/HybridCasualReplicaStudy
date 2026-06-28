@@ -52,6 +52,7 @@ namespace ReplicaProjects.Arrows
         }
 
         public bool IsInBounds(int index) => _gridLogic.IsInBounds(index, _gridData.Length);
+        public bool IsInBounds(Vector2Int coords) => _gridLogic.IsInBounds(CoordinatesToIndex(coords), _gridData.Length);
 
         public Vector2Int IndexToCoordinates(int index) => _gridLogic.IndexToCoordinates(index, model.width);
 

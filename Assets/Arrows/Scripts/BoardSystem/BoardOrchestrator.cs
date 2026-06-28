@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using UnityEngine;
 
 namespace ReplicaProjects.Arrows
 {
@@ -20,6 +21,8 @@ namespace ReplicaProjects.Arrows
 
     public class BoardOrchestrator
     {
+        public event System.Action NoHeadLeft;
+
         private Dictionary<int, int[]> _chunkMap;
         private BoardLogic _boardLogic;
         public BoardDataArrays dataArrays;
@@ -32,7 +35,6 @@ namespace ReplicaProjects.Arrows
             BuildFromHeads(level.width, level.height, level.heads);
         }
 
-        // Runtime / editor randomizer: generate rule-valid heads, then build the board.
         public void Initialize(int width, int height, int headCount)
         {
             _boardLogic = new BoardLogic();
@@ -47,7 +49,7 @@ namespace ReplicaProjects.Arrows
             dataArrays = new BoardDataArrays
             {
                 headIndexArray = new int[heads.Count],
-                directionArray = new Direction[width * height]
+                directionArray = new Direction[width * height],
             };
 
             for (int i = 0; i < heads.Count; i++)
@@ -57,6 +59,7 @@ namespace ReplicaProjects.Arrows
 
                 dataArrays.headIndexArray[i] = index;
                 dataArrays.directionArray[index] = head.direction;
+                _chunkMap.Add(index, null);
             }
         }
 
@@ -73,6 +76,18 @@ namespace ReplicaProjects.Arrows
             }
 
             return null;
+        }
+
+        public void RemoveChuck(int headIndex)
+        {
+            _chunkMap.Remove(headIndex);
+
+            if (_chunkMap.Count > 0)
+                return;
+
+            NoHeadLeft?.Invoke();
+
+            Debug.Log($"Game Finished! You WON!");
         }
     }
 }

@@ -17,6 +17,11 @@ namespace ReplicaProjects.Arrows
         public BoardItemType type;
     }
 
+    public class PresentationData
+    {
+        public GameObject head;
+    }
+
     public class BoardPresentation : MonoBehaviour
     {
         [SerializeField] private GameObject _ArrowPrefab;
@@ -26,8 +31,12 @@ namespace ReplicaProjects.Arrows
         private readonly List<GameObject> _dotList = new();
         private Sequence _sequence;
 
+        private Dictionary<Vector2Int, PresentationData> _presentationObjectTable;
+
         public void Initialize(List<BoardItemData> boardItemDataList)
         {
+            _presentationObjectTable = new(boardItemDataList.Count);
+
             for (int i = 0; i < boardItemDataList.Count; i++)
             {
                 var boardItemData = boardItemDataList[i];
@@ -36,15 +45,28 @@ namespace ReplicaProjects.Arrows
                 if (prefab == null)
                     continue;
 
-                var arrow = Instantiate(prefab);
+                var boardItem = Instantiate(prefab);
                 var dot = Instantiate(_DotPrefab);
 
                 dot.transform.position = new Vector3(boardItemData.coordinates.x, boardItemData.coordinates.y, 0);
                 _dotList.Add(dot);
 
-                arrow.transform.position = new Vector3(boardItemData.coordinates.x, boardItemData.coordinates.y);
-                arrow.transform.rotation = boardItemData.direction.ToQuaternion();
+                boardItem.transform.position = new Vector3(boardItemData.coordinates.x, boardItemData.coordinates.y);
+                boardItem.transform.rotation = boardItemData.direction.ToQuaternion();
+
+                Add(boardItemData, boardItem);
             }
+        }
+
+        private void Add(BoardItemData itemData, GameObject boardItem)
+        {
+            if (itemData.type != BoardItemType.Arrow)
+                return;
+
+            _presentationObjectTable.Add(itemData.coordinates, new PresentationData()
+            {
+                head = boardItem
+            });
         }
 
         public void DeInitialize()
@@ -61,10 +83,20 @@ namespace ReplicaProjects.Arrows
 
             _dotList.Clear();
             _sequence.Kill();
+            _presentationObjectTable.Clear();
+        }
+
+        public void EmptyAtCoordinate(Vector2Int coordinate)
+        {
+            if (!_presentationObjectTable.TryGetValue(coordinate, out var data))
+                return;
+
+            _presentationObjectTable.Remove(coordinate);
+            data.head.SetActive(false); // TODO Animation Later
         }
 
 
-        public GameObject SelectPrefab(BoardItemType type)
+        private GameObject SelectPrefab(BoardItemType type)
         {
             switch (type)
             {
