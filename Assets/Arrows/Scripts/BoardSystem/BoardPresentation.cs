@@ -29,6 +29,7 @@ namespace ReplicaProjects.Arrows
         [SerializeField] private GameObject _DotPrefab;
 
         private readonly List<GameObject> _dotList = new();
+        private readonly List<GameObject> _boardItemList = new();
         private Sequence _sequence;
 
         private Dictionary<Vector2Int, PresentationData> _presentationObjectTable;
@@ -54,6 +55,7 @@ namespace ReplicaProjects.Arrows
                 boardItem.transform.position = new Vector3(boardItemData.coordinates.x, boardItemData.coordinates.y);
                 boardItem.transform.rotation = boardItemData.direction.ToQuaternion();
 
+                _boardItemList.Add(boardItem);
                 Add(boardItemData, boardItem);
             }
         }
@@ -82,7 +84,19 @@ namespace ReplicaProjects.Arrows
             }
 
             _dotList.Clear();
-            _sequence.Kill();
+
+            for (int i = _boardItemList.Count - 1; i >= 0; i--)
+            {
+                var boardItem = _boardItemList[i];
+
+                if (boardItem == null)
+                    continue;
+
+                Destroy(boardItem);
+            }
+
+            _boardItemList.Clear();
+            _sequence?.Kill();
             _presentationObjectTable.Clear();
         }
 

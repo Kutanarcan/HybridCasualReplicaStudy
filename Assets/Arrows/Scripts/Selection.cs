@@ -6,8 +6,10 @@ namespace ReplicaProjects.Arrows
     public class Selection : MonoBehaviour
     {
         [SerializeField] private float _nodeHitDiameter = 0.9f;
+        [SerializeField] private float _dragThreshold = 10f; // pixels
 
         private Camera _camera;
+        private Vector3 _pointerDownPosition;
 
         public event Action<Vector2Int> OnNodeSelected;
 
@@ -21,7 +23,14 @@ namespace ReplicaProjects.Arrows
             if (_camera == null)
                 return;
 
-            if (!Input.GetMouseButtonDown(0))
+            if (Input.GetMouseButtonDown(0))
+                _pointerDownPosition = Input.mousePosition;
+
+            if (!Input.GetMouseButtonUp(0))
+                return;
+
+            // A drag (pan) moved the pointer beyond the threshold — don't select.
+            if ((Input.mousePosition - _pointerDownPosition).sqrMagnitude > _dragThreshold * _dragThreshold)
                 return;
 
             if (TryGetCoordinateUnderMouse(out var coordinate))

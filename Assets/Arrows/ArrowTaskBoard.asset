@@ -83,13 +83,13 @@ MonoBehaviour:
     Description: Win-Lose Sequences and UI
     Type: 1
     Estimation: 0
-    Progress: 0
+    Progress: 2
     Subtasks: []
   - Id: 16
     Description: Camera Zoom System
     Type: 1
     Estimation: 0
-    Progress: 0
+    Progress: 2
     Subtasks: []
   - Id: 13
     Description: Arrow Animation

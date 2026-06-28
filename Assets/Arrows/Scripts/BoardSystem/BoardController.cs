@@ -22,6 +22,12 @@ namespace ReplicaProjects.Arrows
             PopulateOccupancy();
         }
 
+        public void DeInitialize()
+        {
+            _board.DeInitialize();
+            _grid.DeInitialize();
+        }
+
         private void PopulateOccupancy()
         {
             foreach (var headIndex in _board.dataArrays.headIndexArray)

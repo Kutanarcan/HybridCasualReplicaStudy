@@ -17,6 +17,7 @@ namespace ReplicaProjects.Arrows
         private EndScreenPresentation _endScreenPresentation;
 
         private Selection _selection;
+        private CameraController _cameraController;
 
         private const int MAX_HEALTH = 3;
         private bool isFinished = false;
@@ -27,7 +28,6 @@ namespace ReplicaProjects.Arrows
             Initialize();
             InitializePresentation();
             InitializeSelection();
-            AdjustCamera(width, height);
         }
 
         private void Create()
@@ -39,6 +39,8 @@ namespace ReplicaProjects.Arrows
             _boardPresentation = Instantiate(boardPresentationPrefab);
             _healthPresentation = Instantiate(healthPresentationPrefab);
             _endScreenPresentation = Instantiate(endScreenPresentationPrefab);
+
+            _cameraController = gameObject.AddComponent<CameraController>();
         }
 
         private void Initialize()
@@ -48,6 +50,7 @@ namespace ReplicaProjects.Arrows
 
             _boardController.Initialize(_level);
             _healthOrchestrator.Initialize(MAX_HEALTH);
+            _cameraController.Initialize(Camera.main, width, height);
             _healthOrchestrator.Died += OnFinishedWithDefeat;
             _boardController.Board.NoHeadLeft += OnFinishedWithVictory;
             _endScreenPresentation.InteractionButtonPressed += OnEndGameButtonPressed;
@@ -59,11 +62,20 @@ namespace ReplicaProjects.Arrows
             _healthOrchestrator.Died -= OnFinishedWithDefeat;
             _boardController.Board.NoHeadLeft -= OnFinishedWithVictory;
             _endScreenPresentation.InteractionButtonPressed -= OnEndGameButtonPressed;
+
+            _boardController.DeInitialize();
+            _healthOrchestrator.DeInitialize();
+            _cameraController.DeInitialize();
+            _boardPresentation.DeInitialize();
+            _healthPresentation.DeInitialize();
         }
 
         private void OnEndGameButtonPressed()
         {
-            // TODO Restart Level (Victory-Defeat)
+            DeInitialize();
+            Initialize();
+            InitializePresentation();
+            isFinished = false;
         }
 
         private void OnFinishedWithDefeat()
@@ -111,17 +123,6 @@ namespace ReplicaProjects.Arrows
             _boardPresentation.Initialize(boardItemDataList);
             _healthPresentation.Initialize(_healthOrchestrator.currentHealth);
 
-        }
-
-        private void AdjustCamera(int width, int height)
-        {
-            var camera = Camera.main;
-
-            var size = width <= height ? (width + height) * 0.5f : width;
-            var cameraPosition = new Vector3(width, height, camera.transform.position.z) * 0.5f - new Vector3(0.5f, 0.5f, 0);
-
-            camera.transform.position = cameraPosition;
-            camera.orthographicSize = size;
         }
 
         private void InitializeSelection()
