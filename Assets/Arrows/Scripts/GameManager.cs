@@ -14,10 +14,12 @@ namespace ReplicaProjects.Arrows
 
         private BoardPresentation _boardPresentation;
         private HealthPresentation _healthPresentation;
+        private EndScreenPresentation _endScreenPresentation;
 
         private Selection _selection;
 
         private const int MAX_HEALTH = 3;
+        private bool isFinished = false;
 
         private void Awake()
         {
@@ -32,9 +34,11 @@ namespace ReplicaProjects.Arrows
         {
             var boardPresentationPrefab = ArrowsReplicaAssetDatabase.BoardPresentationPrefab;
             var healthPresentationPrefab = ArrowsReplicaAssetDatabase.HealthPresentationPrefab;
+            var endScreenPresentationPrefab = ArrowsReplicaAssetDatabase.EndScreenPresentationPrefab;
 
             _boardPresentation = Instantiate(boardPresentationPrefab);
             _healthPresentation = Instantiate(healthPresentationPrefab);
+            _endScreenPresentation = Instantiate(endScreenPresentationPrefab);
         }
 
         private void Initialize()
@@ -44,23 +48,33 @@ namespace ReplicaProjects.Arrows
 
             _boardController.Initialize(_level);
             _healthOrchestrator.Initialize(MAX_HEALTH);
-            _healthOrchestrator.Died += OnFinishedWithLose;
+            _healthOrchestrator.Died += OnFinishedWithDefeat;
             _boardController.Board.NoHeadLeft += OnFinishedWithVictory;
+            _endScreenPresentation.InteractionButtonPressed += OnEndGameButtonPressed;
         }
 
 
         private void DeInitialize()
         {
-
+            _healthOrchestrator.Died -= OnFinishedWithDefeat;
+            _boardController.Board.NoHeadLeft -= OnFinishedWithVictory;
+            _endScreenPresentation.InteractionButtonPressed -= OnEndGameButtonPressed;
         }
 
-        private void OnFinishedWithLose()
+        private void OnEndGameButtonPressed()
         {
-            // TODO: Show Lose Screen
+            // TODO Restart Level (Victory-Defeat)
+        }
+
+        private void OnFinishedWithDefeat()
+        {
+            isFinished =true;
+            _endScreenPresentation.SetState(false);
         }
         private void OnFinishedWithVictory()
         {
-            // TODO: Show Victory Screen
+            isFinished =true;
+            _endScreenPresentation.SetState(true);
         }
 
         private void InitializePresentation()
@@ -119,6 +133,9 @@ namespace ReplicaProjects.Arrows
 
         private void OnNodeSelected(Vector2Int coordinates)
         {
+            if (isFinished)
+                return;
+
             if (coordinates.x < 0 || coordinates.x >= width ||
                 coordinates.y < 0 || coordinates.y >= height)
                 return;

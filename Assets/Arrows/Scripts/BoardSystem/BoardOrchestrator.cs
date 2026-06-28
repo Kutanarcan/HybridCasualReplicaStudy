@@ -86,8 +86,6 @@ namespace ReplicaProjects.Arrows
                 return;
 
             NoHeadLeft?.Invoke();
-
-            Debug.Log($"Game Finished! You WON!");
         }
     }
 }
