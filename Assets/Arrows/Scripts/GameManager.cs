@@ -5,7 +5,9 @@ namespace ReplicaProjects.Arrows
 {
     public class GameManager : MonoBehaviour
     {
-        public int width, height;
+        [SerializeField] private LevelData _level;
+
+        private int width, height;
 
         private readonly GridOrchestrator _gridOrchestrator = new();
         private readonly BoardOrchestrator _boardOrchestrator = new();
@@ -30,13 +32,16 @@ namespace ReplicaProjects.Arrows
 
         private void Initialize()
         {
+            width = _level.width;
+            height = _level.height;
+
             _gridOrchestrator.Initialize(new GridOrchestratorModel()
             {
                 width = width,
                 height = height,
             });
 
-            _boardOrchestrator.Initialize(width, height, 5);
+            _boardOrchestrator.Initialize(_level);
         }
 
         private void InitializePresentation()

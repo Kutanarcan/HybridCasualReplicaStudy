@@ -61,6 +61,25 @@ namespace ReplicaProjects.Arrows
             return Direction.None;
         }
 
+        public static Vector2Int ToVector2Int(this Direction dir)
+        {
+            switch (dir)
+            {
+                case Direction.Up:
+                    return Vector2Int.up;
+                case Direction.Down:
+                    return Vector2Int.down;
+                case Direction.Left:
+                    return Vector2Int.left;
+                case Direction.Right:
+                    return Vector2Int.right;
+            }
+
+            return Vector2Int.zero;
+        }
+
+        public static Direction Opposite(this Direction dir) => (-dir.ToVector2Int()).ToDirection();
+
         public static Quaternion ToQuaternion(this Direction dir)
         {
             switch (dir)

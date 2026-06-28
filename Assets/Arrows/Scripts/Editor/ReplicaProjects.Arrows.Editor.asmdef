@@ -1,0 +1,17 @@
+{
+    "name": "ReplicaProjects.Arrows.Editor",
+    "references": [
+        "ReplicaProjects.Arrows"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
