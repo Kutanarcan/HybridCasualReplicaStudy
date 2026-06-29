@@ -46,26 +46,57 @@ namespace ReplicaProjects.Arrows
 
         private void BuildFromHeads(int width, int height, List<HeadData> heads)
         {
+            int size = width * height;
+
             dataArrays = new BoardDataArrays
             {
                 headIndexArray = new int[heads.Count],
-                directionArray = new Direction[width * height],
+                directionArray = new Direction[size],
+                chunkIndexArray = new int[size],
             };
+
+            // -1 = cell belongs to no arrow.
+            for (int i = 0; i < size; i++)
+                dataArrays.chunkIndexArray[i] = -1;
 
             for (int i = 0; i < heads.Count; i++)
             {
                 var head = heads[i];
-                int index = head.coordinates.y * width + head.coordinates.x;
+                int headIndex = head.coordinates.y * width + head.coordinates.x;
 
-                dataArrays.headIndexArray[i] = index;
-                dataArrays.directionArray[index] = head.direction;
-                _chunkMap.Add(index, null);
+                dataArrays.headIndexArray[i] = headIndex;
+                dataArrays.directionArray[headIndex] = head.direction;
+                dataArrays.chunkIndexArray[headIndex] = headIndex; // head points to itself
+
+                int lineCount = head.line?.Count ?? 0;
+                var cells = new int[lineCount];
+
+                for (int c = 0; c < lineCount; c++)
+                {
+                    var cellCoord = head.line[c];
+                    int cellIndex = cellCoord.y * width + cellCoord.x;
+
+                    cells[c] = cellIndex;
+                    dataArrays.chunkIndexArray[cellIndex] = headIndex; // line cell -> owning head
+                    // directionArray stays Direction.None for line cells.
+                }
+
+                _chunkMap.Add(headIndex, cells);
             }
         }
 
         public void DeInitialize()
         {
 
+        }
+
+        // Resolves any cell (head or line) to its owning head's flat index, or -1 if empty.
+        public int GetHeadIndex(int cellIndex)
+        {
+            if (cellIndex < 0 || cellIndex >= dataArrays.chunkIndexArray.Length)
+                return -1;
+
+            return dataArrays.chunkIndexArray[cellIndex];
         }
 
         public int[] GetLineChuck(int headIndex)

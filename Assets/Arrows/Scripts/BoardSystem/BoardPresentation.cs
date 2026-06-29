@@ -13,6 +13,7 @@ namespace ReplicaProjects.Arrows
     public struct BoardItemData
     {
         public Vector2Int coordinates;
+        public Vector2Int headCoordinates; // owning head's coordinate (head items use their own)
         public Direction direction;
         public BoardItemType type;
     }
@@ -20,6 +21,7 @@ namespace ReplicaProjects.Arrows
     public class PresentationData
     {
         public GameObject head;
+        public readonly List<GameObject> line = new();
     }
 
     public class BoardPresentation : MonoBehaviour
@@ -33,6 +35,11 @@ namespace ReplicaProjects.Arrows
         private Sequence _sequence;
 
         private Dictionary<Vector2Int, PresentationData> _presentationObjectTable;
+
+        public void Initialize(BoardItemData headData, List<BoardItemData> boardItemDataList)
+        {
+
+        }
 
         public void Initialize(List<BoardItemData> boardItemDataList)
         {
@@ -62,13 +69,17 @@ namespace ReplicaProjects.Arrows
 
         private void Add(BoardItemData itemData, GameObject boardItem)
         {
-            if (itemData.type != BoardItemType.Arrow)
-                return;
-
-            _presentationObjectTable.Add(itemData.coordinates, new PresentationData()
+            // Group head + line visuals under the owning head's coordinate.
+            if (!_presentationObjectTable.TryGetValue(itemData.headCoordinates, out var data))
             {
-                head = boardItem
-            });
+                data = new PresentationData();
+                _presentationObjectTable.Add(itemData.headCoordinates, data);
+            }
+
+            if (itemData.type == BoardItemType.Arrow)
+                data.head = boardItem;
+            else
+                data.line.Add(boardItem);
         }
 
         public void DeInitialize()
@@ -100,13 +111,19 @@ namespace ReplicaProjects.Arrows
             _presentationObjectTable.Clear();
         }
 
-        public void EmptyAtCoordinate(Vector2Int coordinate)
+        public void EmptyArrow(Vector2Int headCoordinate)
         {
-            if (!_presentationObjectTable.TryGetValue(coordinate, out var data))
+            if (!_presentationObjectTable.TryGetValue(headCoordinate, out var data))
                 return;
 
-            _presentationObjectTable.Remove(coordinate);
-            data.head.SetActive(false); // TODO Animation Later
+            _presentationObjectTable.Remove(headCoordinate);
+
+            if (data.head != null)
+                data.head.SetActive(false); // TODO Animation Later
+
+            foreach (var lineObject in data.line)
+                if (lineObject != null)
+                    lineObject.SetActive(false);
         }
 
 

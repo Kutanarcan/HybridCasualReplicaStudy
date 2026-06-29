@@ -137,7 +137,109 @@ namespace ReplicaProjects.Arrows
                 });
             }
 
+            GrowLines(heads, width, height);
+
             return heads;
+        }
+
+        // Number of extra (random-walk) line cells beyond the mandatory first cell.
+        private const int MaxExtraLineCells = 5;
+
+        private void GrowLines(List<HeadData> heads, int width, int height)
+        {
+            // Cells already taken by any head or any previously grown line.
+            var occupied = new HashSet<int>();
+            foreach (var h in heads)
+                occupied.Add(h.coordinates.y * width + h.coordinates.x);
+
+            for (int i = 0; i < heads.Count; i++)
+            {
+                var head = heads[i];
+                head.line = GrowLine(head.coordinates, head.direction, width, height, occupied);
+                heads[i] = head;
+            }
+        }
+
+        // occupied is mutated as cells are claimed; forbidden = this head's own line of sight.
+        private List<Vector2Int> GrowLine(Vector2Int head, Direction direction,
+                                          int width, int height, HashSet<int> occupied)
+        {
+            var line = new List<Vector2Int>();
+
+            var forbidden = new HashSet<int>();
+            CollectLineOfSight(head, direction, width, height, forbidden);
+
+            // 1) Mandatory first cell: directly behind the head (never in its forward line of sight).
+            var behind = head - direction.ToVector2Int();
+            if (!TryClaim(behind, width, height, occupied, forbidden))
+                return line; // no room behind -> head gets no line (validation will flag it)
+
+            line.Add(behind);
+            var cursor = behind;
+
+            // 2) Random-walk extra cells into free, in-bounds, orthogonal neighbours.
+            int extra = Random.Range(0, MaxExtraLineCells + 1);
+            for (int i = 0; i < extra; i++)
+            {
+                if (!TryStepRandom(ref cursor, width, height, occupied, forbidden))
+                    break;
+                line.Add(cursor);
+            }
+
+            return line;
+        }
+
+        private static bool TryClaim(Vector2Int c, int width, int height,
+                                     HashSet<int> occupied, HashSet<int> forbidden)
+        {
+            if (!InBounds(c, width, height))
+                return false;
+
+            int index = c.y * width + c.x;
+            if (forbidden.Contains(index)) // would cross own head's line of sight
+                return false;
+
+            return occupied.Add(index); // false if already taken
+        }
+
+        private static bool TryStepRandom(ref Vector2Int cursor, int width, int height,
+                                          HashSet<int> occupied, HashSet<int> forbidden)
+        {
+            // Shuffle the four directions, take the first allowed neighbour.
+            var dirs = new[] { Direction.Up, Direction.Down, Direction.Left, Direction.Right };
+            for (int i = dirs.Length - 1; i > 0; i--)
+            {
+                int j = Random.Range(0, i + 1);
+                (dirs[i], dirs[j]) = (dirs[j], dirs[i]);
+            }
+
+            foreach (var d in dirs)
+            {
+                var next = cursor + d.ToVector2Int();
+                if (TryClaim(next, width, height, occupied, forbidden))
+                {
+                    cursor = next;
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        // Every cell from the head, stepping in its direction, to the board edge (excludes the head).
+        private static void CollectLineOfSight(Vector2Int from, Direction direction,
+                                               int width, int height, HashSet<int> into)
+        {
+            var step = direction.ToVector2Int();
+            if (step == Vector2Int.zero)
+                return;
+
+            var c = from + step;
+            while (InBounds(c, width, height))
+            {
+                into.Add(c.y * width + c.x);
+                c += step;
+            }
         }
 
         private Direction PickDirection(HashSet<Direction> allowed, List<Direction> hardBanned, int width, int height)
@@ -222,6 +324,8 @@ namespace ReplicaProjects.Arrows
                         }
                     }
                 }
+
+                ValidateLines(input, violations);
             }
 
             return new BoardValidateResult
@@ -229,6 +333,68 @@ namespace ReplicaProjects.Arrows
                 isValid = violations.Count == 0,
                 violations = violations
             };
+        }
+
+        // Line rules: every head has >= 1 line cell; the chain is in-bounds and contiguous from the
+        // head; no cell overlaps another head or line; no cell sits in its own head's line of sight.
+        private void ValidateLines(BoardValidateInput input, List<BoardViolation> violations)
+        {
+            var heads = input.heads;
+            int width = input.width;
+            int height = input.height;
+
+            // Seed occupancy with every head cell so lines can't land on a head.
+            var occupied = new HashSet<int>();
+            foreach (var h in heads)
+                occupied.Add(h.coordinates.y * width + h.coordinates.x);
+
+            foreach (var head in heads)
+            {
+                if (head.line == null || head.line.Count == 0)
+                {
+                    violations.Add(new BoardViolation
+                    {
+                        coordinates = head.coordinates,
+                        reason = "has no line"
+                    });
+                    continue;
+                }
+
+                var los = new HashSet<int>();
+                CollectLineOfSight(head.coordinates, head.direction, width, height, los);
+
+                var prev = head.coordinates;
+                foreach (var cell in head.line)
+                {
+                    if (!InBounds(cell, width, height))
+                    {
+                        violations.Add(new BoardViolation { coordinates = cell, reason = "line cell off-board" });
+                        break;
+                    }
+
+                    if ((cell - prev).sqrMagnitude != 1)
+                    {
+                        violations.Add(new BoardViolation { coordinates = cell, reason = "line is not contiguous" });
+                        break;
+                    }
+
+                    int index = cell.y * width + cell.x;
+
+                    if (los.Contains(index))
+                    {
+                        violations.Add(new BoardViolation { coordinates = cell, reason = "line crosses its own head's line of sight" });
+                        break;
+                    }
+
+                    if (!occupied.Add(index))
+                    {
+                        violations.Add(new BoardViolation { coordinates = cell, reason = "lines overlap" });
+                        break;
+                    }
+
+                    prev = cell;
+                }
+            }
         }
 
         private static bool InBounds(Vector2Int coord, int width, int height) =>

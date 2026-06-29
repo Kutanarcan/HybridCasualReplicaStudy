@@ -45,5 +45,5 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   _ArrowPrefab: {fileID: 1526775531735388644, guid: 82bcd6ba50481104c87ac62b16557b15, type: 3}
-  _LinePrefab: {fileID: 0}
+  _LinePrefab: {fileID: 544433788459623342, guid: b3b99aca58807f14e980d827c6bd7511, type: 3}
   _DotPrefab: {fileID: 7367144934708684321, guid: e4acaecf2c3a77e4db43d683eb28be4e, type: 3}

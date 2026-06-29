@@ -43,11 +43,33 @@ namespace ReplicaProjects.Arrows
             }
         }
 
+        // Resolves any clicked cell (head or line) to the coordinate of its owning head.
+        public Vector2Int GetHeadCoordinate(Vector2Int coordinates)
+        {
+            int headIndex = _board.GetHeadIndex(_grid.CoordinatesToIndex(coordinates));
+            return _grid.IndexToCoordinates(headIndex);
+        }
+
         public void RemoveAtCoordinate(Vector2Int coordinates)
         {
-            _grid.Set(coordinates.x, coordinates.y, false);
+            int headIndex = _board.GetHeadIndex(_grid.CoordinatesToIndex(coordinates));
+            if (headIndex < 0)
+                return;
 
-            _board.RemoveChuck(_grid.CoordinatesToIndex(coordinates));
+            // Free the head cell.
+            var headCoord = _grid.IndexToCoordinates(headIndex);
+            _grid.Set(headCoord.x, headCoord.y, false);
+
+            // Free every line cell of the chunk.
+            var chunk = _board.GetLineChuck(headIndex);
+            if (chunk != null)
+                foreach (var lineIndex in chunk)
+                {
+                    var lineCoord = _grid.IndexToCoordinates(lineIndex);
+                    _grid.Set(lineCoord.x, lineCoord.y, false);
+                }
+
+            _board.RemoveChuck(headIndex);
         }
 
         private void SetOccupied(int index)
@@ -61,9 +83,15 @@ namespace ReplicaProjects.Arrows
 
         public bool IsPathClear(Vector2Int coordinates)
         {
-            var index = _grid.CoordinatesToIndex(coordinates);
-            var direction = _board.dataArrays.directionArray[index];
-            return _grid.IsPathClear(coordinates, direction);
+            int headIndex = _board.GetHeadIndex(_grid.CoordinatesToIndex(coordinates));
+            if (headIndex < 0)
+                return false;
+
+            // Check from the head, in the head's direction. The self line-of-sight rule guarantees
+            // the arrow's own line is never in front of it, so no own-cell exclusion is needed.
+            var headCoord = _grid.IndexToCoordinates(headIndex);
+            var direction = _board.dataArrays.directionArray[headIndex];
+            return _grid.IsPathClear(headCoord, direction);
         }
     }
 }

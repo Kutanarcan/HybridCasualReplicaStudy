@@ -97,9 +97,12 @@ namespace ReplicaProjects.Arrows
 
             foreach (var headIndex in board.dataArrays.headIndexArray)
             {
+                var headCoord = grid.IndexToCoordinates(headIndex);
+
                 boardItemDataList.Add(new BoardItemData()
                 {
-                    coordinates = grid.IndexToCoordinates(headIndex),
+                    coordinates = headCoord,
+                    headCoordinates = headCoord,
                     direction = board.dataArrays.directionArray[headIndex],
                     type = BoardItemType.Arrow
                 });
@@ -114,6 +117,7 @@ namespace ReplicaProjects.Arrows
                     boardItemDataList.Add(new BoardItemData()
                     {
                         coordinates = grid.IndexToCoordinates(chunkIndex),
+                        headCoordinates = headCoord,
                         direction = board.dataArrays.directionArray[chunkIndex],
                         type = BoardItemType.Line
                     });
@@ -144,10 +148,13 @@ namespace ReplicaProjects.Arrows
             if (_boardController.IsEmpty(coordinates))
                 return;
 
+            // A tapped cell may be a head OR any of its line cells; both resolve to the same head.
+            var headCoord = _boardController.GetHeadCoordinate(coordinates);
+
             if (_boardController.IsPathClear(coordinates))
             {
                 _boardController.RemoveAtCoordinate(coordinates);
-                _boardPresentation.EmptyAtCoordinate(coordinates);
+                _boardPresentation.EmptyArrow(headCoord);
             }
             else
             {
