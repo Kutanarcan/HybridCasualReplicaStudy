@@ -18,6 +18,8 @@ namespace ReplicaProjects.Arrows
 
         private Selection _selection;
         private CameraController _cameraController;
+        private AudioSource _audioSource;
+        private AudioClip _selectionSFX;
 
         private const int MAX_HEALTH = 3;
         private bool isFinished = false;
@@ -34,12 +36,14 @@ namespace ReplicaProjects.Arrows
             var boardPresentationPrefab = ArrowsReplicaAssetDatabase.BoardPresentationPrefab;
             var healthPresentationPrefab = ArrowsReplicaAssetDatabase.HealthPresentationPrefab;
             var endScreenPresentationPrefab = ArrowsReplicaAssetDatabase.EndScreenPresentationPrefab;
+            _selectionSFX = ArrowsReplicaAssetDatabase.SFX_Selection;
 
             _boardPresentation = Instantiate(boardPresentationPrefab);
             _healthPresentation = Instantiate(healthPresentationPrefab);
             _endScreenPresentation = Instantiate(endScreenPresentationPrefab);
 
             _cameraController = gameObject.AddComponent<CameraController>();
+            _audioSource = gameObject.AddComponent<AudioSource>();
 
             _selection = gameObject.AddComponent<Selection>();
             _selection.Initialize(Camera.main);
@@ -145,6 +149,8 @@ namespace ReplicaProjects.Arrows
 
         private void OnNodeSelected(Vector2Int coordinates)
         {
+            _audioSource.PlayOneShot(_selectionSFX);
+
             if (isFinished)
                 return;
 
