@@ -93,5 +93,14 @@ namespace ReplicaProjects.Arrows
             var direction = _board.dataArrays.directionArray[headIndex];
             return _grid.IsPathClear(headCoord, direction);
         }
+
+        // The first occupied cell in front of the tapped arrow's head (used by the wrong-answer bump).
+        public Vector2Int GetForwardBlocker(Vector2Int coordinates)
+        {
+            int headIndex = _board.GetHeadIndex(_grid.CoordinatesToIndex(coordinates));
+            var headCoord = _grid.IndexToCoordinates(headIndex);
+            var direction = _board.dataArrays.directionArray[headIndex];
+            return _grid.FirstBlocked(headCoord, direction);
+        }
     }
 }

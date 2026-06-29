@@ -42,5 +42,20 @@ namespace ReplicaProjects.Arrows
             }
             return true;
         }
+
+        // First occupied cell from `from` in `direction`, or `from` itself if the ray is fully clear.
+        public Vector2Int FirstBlocked(bool[] gridData, Vector2Int from, Direction direction, int width, int height)
+        {
+            int steps = CellsAhead(from, direction, width, height);
+            var step = direction.ToVector2Int();
+            var c = from;
+            for (int i = 0; i < steps; i++)
+            {
+                c += step;
+                if (gridData[CoordinatesToIndex(c.x, c.y, width)])
+                    return c;
+            }
+            return from;
+        }
     }
 }

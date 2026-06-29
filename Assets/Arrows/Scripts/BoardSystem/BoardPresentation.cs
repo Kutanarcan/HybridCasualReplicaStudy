@@ -118,6 +118,17 @@ namespace ReplicaProjects.Arrows
                 data.head.AnimateEmpty();
         }
 
+        // Wrong-answer feedback: the arrow lunges at the blocking cell and springs back. The arrow
+        // stays on the board, so it is NOT removed from the table.
+        public void BumpArrow(Vector2Int headCoordinate, Vector2Int blockerCoordinate)
+        {
+            if (!_presentationObjectTable.TryGetValue(headCoordinate, out var data))
+                return;
+
+            if (data.head != null)
+                data.head.AnimateBump(ToWorld(blockerCoordinate));
+        }
+
         private void AnimateDots(List<int> indexList)
         {
             _sequence = DOTween.Sequence();

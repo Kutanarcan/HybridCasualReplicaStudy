@@ -60,5 +60,8 @@ namespace ReplicaProjects.Arrows
 
         public bool IsPathClear(Vector2Int from, Direction direction) =>
             _gridLogic.IsPathClear(_gridData, from, direction, model.width, model.height);
+
+        public Vector2Int FirstBlocked(Vector2Int from, Direction direction) =>
+            _gridLogic.FirstBlocked(_gridData, from, direction, model.width, model.height);
     }
 }

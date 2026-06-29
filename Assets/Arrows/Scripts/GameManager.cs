@@ -165,6 +165,10 @@ namespace ReplicaProjects.Arrows
             }
             else
             {
+                var blocker = _boardController.GetForwardBlocker(coordinates);
+                _boardPresentation.BumpArrow(headCoord, blocker);
+                _cameraController.Shake();
+
                 _healthOrchestrator.DecreaseHealth();
                 _healthPresentation.SetHealthAmount(_healthOrchestrator.currentHealth);
             }

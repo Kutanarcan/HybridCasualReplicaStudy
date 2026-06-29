@@ -1,4 +1,5 @@
 using UnityEngine;
+using DG.Tweening;
 
 namespace ReplicaProjects.Arrows
 {
@@ -8,11 +9,19 @@ namespace ReplicaProjects.Arrows
         [SerializeField] private float _zoomSpeed = 0.5f;
         [SerializeField] private float _boundsPaddingX = 0.5f;
         [SerializeField] private float _boundsPaddingY = 2.5f;
+        [SerializeField] private float _shakeStrength = 0.35f;
+        [SerializeField] private float _shakeDuration = 0.25f;
 
         private Camera _camera;
         private Bounds _boardBounds;
         private float _maxOrthographicSize; // = fit size = max zoom-out
         private Vector3 _lastMousePosition;
+
+        // Shake is layered on top of the clamped position each frame, so ClampToBounds (which can snap
+        // back to centre) never cancels it.
+        private Vector3 _shakeOffset;
+        private Vector3 _shakeOffsetApplied;
+        private Tween _shakeTween;
 
         public void Initialize(Camera camera, int width, int height)
         {
@@ -33,7 +42,30 @@ namespace ReplicaProjects.Arrows
 
         public void DeInitialize()
         {
+            _shakeTween?.Kill();
+            _shakeOffset = Vector3.zero;
+            _shakeOffsetApplied = Vector3.zero;
             _camera = null;
+        }
+
+        // Quick decaying random shake, e.g. on a wrong answer.
+        public void Shake()
+        {
+            if (_camera == null)
+                return;
+
+            _shakeTween?.Kill();
+
+            float strength = _shakeStrength;
+            _shakeTween = DOTween.To(() => strength, x => strength = x, 0f, _shakeDuration)
+                .SetEase(Ease.OutQuad)
+                .OnUpdate(() =>
+                {
+                    var rnd = Random.insideUnitCircle * strength;
+                    _shakeOffset = new Vector3(rnd.x, rnd.y, 0f);
+                })
+                .OnComplete(() => _shakeOffset = Vector3.zero)
+                .SetLink(gameObject);
         }
 
         // Frame the whole board (fully zoomed out, centered).
@@ -50,9 +82,16 @@ namespace ReplicaProjects.Arrows
             if (_camera == null)
                 return;
 
+            // Strip last frame's shake so pan/zoom/clamp operate on the clean base position.
+            _camera.transform.position -= _shakeOffsetApplied;
+
             HandleZoom();
             HandlePan();
             ClampToBounds();
+
+            // Layer the current shake back on top of the controlled position.
+            _shakeOffsetApplied = _shakeOffset;
+            _camera.transform.position += _shakeOffsetApplied;
         }
 
         private void HandleZoom()

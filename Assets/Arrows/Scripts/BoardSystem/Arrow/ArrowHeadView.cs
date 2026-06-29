@@ -12,12 +12,27 @@ namespace ReplicaProjects.Arrows
 
         private const float ExitMargin = 10f;
         private const float ExitDuration = 0.825f;
+
+        // Wrong-answer bump: how far short of the blocker's centre the head stops, and the lunge/recoil
+        // timings.
+        private const float ContactGap = 0.5f;
+        private const float BumpOutDuration = 0.12f;
+        private const float BumpReturnDuration = 0.22f;
+
+        // Tint flashed on the head + body while bumping a wrong answer.
+        private static readonly Color BumpColor = Color.red;
+
         private Vector3[] _points;
         private Direction _direction;
         private Tween _tween;
 
         // Reused each frame so the snake render doesn't allocate while animating.
         private readonly List<Vector3> _buffer = new();
+
+        // Cached so the bump tint can lerp back to the originals.
+        private SpriteRenderer _headRenderer;
+        private Color _headColor;
+        private Color _lineColor;
 
         public void Initialize(IReadOnlyList<Vector3> points, Direction direction)
         {
@@ -30,6 +45,11 @@ namespace ReplicaProjects.Arrows
             _ChunkRenderer.useWorldSpace = true; // head-root rotation must not skew the body
             _ChunkRenderer.positionCount = _points.Length;
             _ChunkRenderer.SetPositions(_points);
+
+            _headRenderer = GetComponentInChildren<SpriteRenderer>();
+            if (_headRenderer != null)
+                _headColor = _headRenderer.color;
+            _lineColor = _ChunkRenderer.startColor;
         }
 
         public void AnimateEmpty()
@@ -74,6 +94,48 @@ namespace ReplicaProjects.Arrows
                         AnimationFinished?.Invoke();
                     });
                 })
+                .SetLink(gameObject);
+        }
+
+        // Wrong-answer feedback: the head lunges along its direction up to the blocking cell, then
+        // springs back to its original position. The body's head-end (line vertex 0) follows so the
+        // line stays attached, stretching on the lunge and recoiling on return.
+        public void AnimateBump(Vector3 blockerPosition)
+        {
+            var origin = _points[0];
+            var step = (Vector3)(Vector2)_direction.ToVector2Int();
+            var contact = blockerPosition - step * ContactGap; // stop just short so the sprites touch
+
+            void Apply(Vector3 p)
+            {
+                transform.position = p;
+                _ChunkRenderer.SetPosition(0, p);
+            }
+
+            // t = 0 -> original colours, t = 1 -> full red (head sprite + body line).
+            void SetTint(float t)
+            {
+                if (_headRenderer != null)
+                    _headRenderer.color = Color.Lerp(_headColor, BumpColor, t);
+
+                var line = Color.Lerp(_lineColor, BumpColor, t);
+                _ChunkRenderer.startColor = line;
+                _ChunkRenderer.endColor = line;
+            }
+
+            _tween?.Kill();
+            Apply(origin); // clear any leftover offset from an interrupted bump
+            SetTint(0f);   // and any leftover red
+
+            var pos = origin;
+            float tint = 0f;
+            _tween = DOTween.Sequence()
+                .Append(DOTween.To(() => pos, p => { pos = p; Apply(p); }, contact, BumpOutDuration)
+                    .SetEase(Ease.OutQuad))
+                .Append(DOTween.To(() => pos, p => { pos = p; Apply(p); }, origin, BumpReturnDuration)
+                    .SetEase(Ease.OutBack))
+                // Flash to red on the lunge and hold it — a bumped arrow stays red afterwards.
+                .Insert(0f, DOTween.To(() => tint, x => { tint = x; SetTint(x); }, 1f, BumpOutDuration))
                 .SetLink(gameObject);
         }
 
