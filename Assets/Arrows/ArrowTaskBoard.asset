@@ -91,14 +91,14 @@ MonoBehaviour:
     Estimation: 0
     Progress: 2
     Subtasks: []
-  - Id: 13
-    Description: Arrow Animation
-    Type: 1
-    Estimation: 0
-    Progress: 0
-    Subtasks: []
   - Id: 11
     Description: Line Draw and Select Logic
+    Type: 1
+    Estimation: 0
+    Progress: 2
+    Subtasks: []
+  - Id: 13
+    Description: Arrow Animation
     Type: 1
     Estimation: 0
     Progress: 0

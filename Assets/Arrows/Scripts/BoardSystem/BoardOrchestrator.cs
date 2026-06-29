@@ -73,12 +73,12 @@ namespace ReplicaProjects.Arrows
 
                 for (int c = 0; c < lineCount; c++)
                 {
-                    var cellCoord = head.line[c];
-                    int cellIndex = cellCoord.y * width + cellCoord.x;
+                    var lineCell = head.line[c];
+                    int cellIndex = lineCell.coordinates.y * width + lineCell.coordinates.x;
 
                     cells[c] = cellIndex;
                     dataArrays.chunkIndexArray[cellIndex] = headIndex; // line cell -> owning head
-                    // directionArray stays Direction.None for line cells.
+                    dataArrays.directionArray[cellIndex] = lineCell.direction;
                 }
 
                 _chunkMap.Add(headIndex, cells);

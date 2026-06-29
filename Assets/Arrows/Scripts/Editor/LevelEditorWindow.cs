@@ -107,7 +107,7 @@ namespace ReplicaProjects.Arrows.EditorTools
                 {
                     coordinates = head.coordinates,
                     direction = head.direction,
-                    line = head.line != null ? new List<Vector2Int>(head.line) : new List<Vector2Int>()
+                    line = head.line != null ? new List<LineCell>(head.line) : new List<LineCell>()
                 };
         }
 
@@ -238,7 +238,7 @@ namespace ReplicaProjects.Arrows.EditorTools
                 if (head.line == null)
                     continue;
 
-                int cut = head.line.FindIndex(c => c.x >= w || c.y >= h);
+                int cut = head.line.FindIndex(c => c.coordinates.x >= w || c.coordinates.y >= h);
                 if (cut >= 0)
                 {
                     head.line.RemoveRange(cut, head.line.Count - cut);
@@ -473,10 +473,11 @@ namespace ReplicaProjects.Arrows.EditorTools
                     var inner = new Rect(cell.x + 1f, cell.y + 1f, cell.width - 2f, cell.height - 2f);
 
                     int lineOwner = 0;
+                    int lineCellIdx = -1;
 
                     bool violation = _violationCoords.Contains(coord);
                     bool isHead = TryGetHeadIndex(coord, out int headIdx);
-                    bool isLine = !isHead && TryGetLineOwner(coord, out lineOwner, out _);
+                    bool isLine = !isHead && TryGetLineOwner(coord, out lineOwner, out lineCellIdx);
 
                     Color fill = CellColor;
                     if (violation)
@@ -498,7 +499,7 @@ namespace ReplicaProjects.Arrows.EditorTools
                         }
 
                         // Index links a head to its line cells.
-                        GUI.Label(new Rect(inner.x + 2f, inner.y + 1f, inner.width, 12f),
+                        GUI.Label(new Rect(inner.x + 4f, inner.y + 3f, inner.width, 20f),
                             headIdx.ToString(), numberStyle);
 
                         if (_selectedHead == coord)
@@ -506,7 +507,18 @@ namespace ReplicaProjects.Arrows.EditorTools
                     }
                     else if (isLine)
                     {
-                        GUI.Label(inner, lineOwner.ToString(), lineNumberStyle);
+                        // Direction glyph shows flow direction so the designer can see the tail.
+                        var lineCell = _heads[lineOwner].line[lineCellIdx];
+                        if (lineCell.direction != Direction.None)
+                        {
+                            var dimStyle = new GUIStyle(glyphStyle);
+                            dimStyle.normal.textColor = new Color(1f, 1f, 1f, 0.55f);
+                            dimStyle.fontSize = 16;
+                            GUI.Label(inner, Glyph(lineCell.direction), dimStyle);
+                        }
+                        // Small owner index in corner links cell to its head.
+                        GUI.Label(new Rect(inner.x + 5f, inner.y + 3f, inner.width, 20f),
+                            lineOwner.ToString(), numberStyle);
                     }
 
                     HandleCellMouse(cell, coord);
@@ -573,13 +585,13 @@ namespace ReplicaProjects.Arrows.EditorTools
                 return false;
 
             var head = _heads[selIdx];
-            var tail = head.line is { Count: > 0 } ? head.line[^1] : head.coordinates;
+            var tail = head.line is { Count: > 0 } ? head.line[^1].coordinates : head.coordinates;
 
             if ((coord - tail).sqrMagnitude != 1 || !IsCellFree(coord) || InOwnLineOfSight(head, coord))
                 return false;
 
-            head.line ??= new List<Vector2Int>();
-            head.line.Add(coord);
+            head.line ??= new List<LineCell>();
+            head.line.Add(new LineCell { coordinates = coord, direction = (coord - tail).ToDirection() });
             _heads[selIdx] = head;
             return true;
         }
@@ -619,7 +631,7 @@ namespace ReplicaProjects.Arrows.EditorTools
                 if (line == null)
                     continue;
 
-                int slot = line.IndexOf(coord);
+                int slot = line.FindIndex(c => c.coordinates == coord);
                 if (slot >= 0)
                 {
                     headIndex = i;
@@ -671,7 +683,7 @@ namespace ReplicaProjects.Arrows.EditorTools
                 return;
             }
 
-            _heads.Add(new HeadData { coordinates = coord, direction = dir, line = new List<Vector2Int>() });
+            _heads.Add(new HeadData { coordinates = coord, direction = dir, line = new List<LineCell>() });
         }
 
         // Erase: removes a whole head (head + its line) or trims a line cell. Returns true if changed.

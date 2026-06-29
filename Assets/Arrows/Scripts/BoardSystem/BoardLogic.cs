@@ -90,17 +90,46 @@ namespace ReplicaProjects.Arrows
 
         public List<HeadData> GenerateRandomLevel(int width, int height, int headCount)
         {
-            int boardSize = width * height;
-            headCount = Mathf.Clamp(headCount, 0, boardSize);
+            headCount = Mathf.Clamp(headCount, 0, width * height);
 
+            // Most layouts succeed on the first try; the retry guards the rare case where a head
+            // can't be given a valid direction with a free cell behind it for its first line.
+            const int maxAttempts = 30;
+            List<HeadData> heads = null;
+            for (int attempt = 0; attempt < maxAttempts; attempt++)
+            {
+                heads = BuildLevel(width, height, headCount);
+
+                var result = ValidateBoard(new BoardValidateInput
+                {
+                    width = width,
+                    height = height,
+                    heads = heads
+                });
+
+                if (result.isValid)
+                    break;
+            }
+
+            return heads;
+        }
+
+        private List<HeadData> BuildLevel(int width, int height, int headCount)
+        {
             var indices = PickRandomArray(new PickRandomArrayInput
             {
-                boardSize = boardSize,
+                boardSize = width * height,
                 headCount = headCount
             });
 
             var heads = new List<HeadData>(indices.Length);
             var allowed = new HashSet<Direction>();
+
+            // Every head and every cell reserved as a "behind" first-line cell. Seeded with all head
+            // positions up front so a head is never placed onto another head's required first cell.
+            var occupied = new HashSet<int>();
+            foreach (var index in indices)
+                occupied.Add(index);
 
             for (int i = 0; i < indices.Length; i++)
             {
@@ -130,28 +159,46 @@ namespace ReplicaProjects.Arrows
                         allowed.RemoveRange(result.bannedDirections);
                 }
 
-                heads.Add(new HeadData
+                // A head needs a free cell directly behind it for its mandatory first line cell.
+                RemoveBlockedBehindDirections(allowed, coord, width, height, occupied);
+
+                var direction = PickDirection(allowed, corner.bannedDirections, width, height);
+                heads.Add(new HeadData { coordinates = coord, direction = direction });
+
+                // Reserve the behind cell so later heads and lines can't take it.
+                if (direction != Direction.None)
                 {
-                    coordinates = coord,
-                    direction = PickDirection(allowed, corner.bannedDirections, width, height)
-                });
+                    var behind = coord - direction.ToVector2Int();
+                    occupied.Add(behind.y * width + behind.x);
+                }
             }
 
-            GrowLines(heads, width, height);
+            GrowLines(heads, width, height, occupied);
 
             return heads;
         }
 
         // Number of extra (random-walk) line cells beyond the mandatory first cell.
-        private const int MaxExtraLineCells = 5;
+        private const int MaxExtraLineCells = 15;
 
-        private void GrowLines(List<HeadData> heads, int width, int height)
+        // Bans directions whose cell directly behind the head is off-board or already taken.
+        private static void RemoveBlockedBehindDirections(HashSet<Direction> allowed, Vector2Int coord,
+                                                          int width, int height, HashSet<int> occupied)
         {
-            // Cells already taken by any head or any previously grown line.
-            var occupied = new HashSet<int>();
-            foreach (var h in heads)
-                occupied.Add(h.coordinates.y * width + h.coordinates.x);
+            var blocked = new List<Direction>();
+            foreach (var dir in allowed)
+            {
+                var behind = coord - dir.ToVector2Int();
+                if (!InBounds(behind, width, height) || occupied.Contains(behind.y * width + behind.x))
+                    blocked.Add(dir);
+            }
 
+            allowed.RemoveRange(blocked);
+        }
+
+        // occupied already holds every head + each head's reserved behind cell.
+        private void GrowLines(List<HeadData> heads, int width, int height, HashSet<int> occupied)
+        {
             for (int i = 0; i < heads.Count; i++)
             {
                 var head = heads[i];
@@ -160,30 +207,31 @@ namespace ReplicaProjects.Arrows
             }
         }
 
-        // occupied is mutated as cells are claimed; forbidden = this head's own line of sight.
-        private List<Vector2Int> GrowLine(Vector2Int head, Direction direction,
-                                          int width, int height, HashSet<int> occupied)
+        // occupied is mutated as extra cells are claimed; forbidden = this head's own line of sight.
+        private List<LineCell> GrowLine(Vector2Int head, Direction direction,
+                                        int width, int height, HashSet<int> occupied)
         {
-            var line = new List<Vector2Int>();
+            var line = new List<LineCell>();
+            if (direction == Direction.None)
+                return line;
+
+            // Mandatory first cell: directly behind the head. It was reserved during placement, so
+            // it is guaranteed in-bounds, free, and (being behind) never in the forward line of sight.
+            var behind = head - direction.ToVector2Int();
+            line.Add(new LineCell { coordinates = behind, direction = direction.Opposite() });
+            var cursor = behind;
 
             var forbidden = new HashSet<int>();
             CollectLineOfSight(head, direction, width, height, forbidden);
 
-            // 1) Mandatory first cell: directly behind the head (never in its forward line of sight).
-            var behind = head - direction.ToVector2Int();
-            if (!TryClaim(behind, width, height, occupied, forbidden))
-                return line; // no room behind -> head gets no line (validation will flag it)
-
-            line.Add(behind);
-            var cursor = behind;
-
-            // 2) Random-walk extra cells into free, in-bounds, orthogonal neighbours.
+            // Random-walk extra cells into free, in-bounds, orthogonal neighbours.
             int extra = Random.Range(0, MaxExtraLineCells + 1);
             for (int i = 0; i < extra; i++)
             {
+                var prev = cursor;
                 if (!TryStepRandom(ref cursor, width, height, occupied, forbidden))
                     break;
-                line.Add(cursor);
+                line.Add(new LineCell { coordinates = cursor, direction = (cursor - prev).ToDirection() });
             }
 
             return line;
@@ -335,8 +383,8 @@ namespace ReplicaProjects.Arrows
             };
         }
 
-        // Line rules: every head has >= 1 line cell; the chain is in-bounds and contiguous from the
-        // head; no cell overlaps another head or line; no cell sits in its own head's line of sight.
+        // Line rules: every head has >= 1 line cell; the chain is in-bounds, contiguous, and
+        // direction-consistent from the head; no cell overlaps; no cell sits in its own LOS.
         private void ValidateLines(BoardValidateInput input, List<BoardViolation> violations)
         {
             var heads = input.heads;
@@ -366,33 +414,42 @@ namespace ReplicaProjects.Arrows
                 var prev = head.coordinates;
                 foreach (var cell in head.line)
                 {
-                    if (!InBounds(cell, width, height))
+                    var coord = cell.coordinates;
+
+                    if (!InBounds(coord, width, height))
                     {
-                        violations.Add(new BoardViolation { coordinates = cell, reason = "line cell off-board" });
+                        violations.Add(new BoardViolation { coordinates = coord, reason = "line cell off-board" });
                         break;
                     }
 
-                    if ((cell - prev).sqrMagnitude != 1)
+                    if ((coord - prev).sqrMagnitude != 1)
                     {
-                        violations.Add(new BoardViolation { coordinates = cell, reason = "line is not contiguous" });
+                        violations.Add(new BoardViolation { coordinates = coord, reason = "line is not contiguous" });
                         break;
                     }
 
-                    int index = cell.y * width + cell.x;
+                    int index = coord.y * width + coord.x;
 
                     if (los.Contains(index))
                     {
-                        violations.Add(new BoardViolation { coordinates = cell, reason = "line crosses its own head's line of sight" });
+                        violations.Add(new BoardViolation { coordinates = coord, reason = "line crosses its own head's line of sight" });
                         break;
                     }
 
                     if (!occupied.Add(index))
                     {
-                        violations.Add(new BoardViolation { coordinates = cell, reason = "lines overlap" });
+                        violations.Add(new BoardViolation { coordinates = coord, reason = "lines overlap" });
                         break;
                     }
 
-                    prev = cell;
+                    var expectedDir = (coord - prev).ToDirection();
+                    if (cell.direction != expectedDir)
+                    {
+                        violations.Add(new BoardViolation { coordinates = coord, reason = "line direction mismatch" });
+                        break;
+                    }
+
+                    prev = coord;
                 }
             }
         }

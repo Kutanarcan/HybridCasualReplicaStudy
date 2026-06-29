@@ -186,5 +186,332 @@ namespace ReplicaProjects.Arrows.Tests
 
             Assert.IsFalse(result.isValid);
         }
+
+        // ---- Lines: generation properties ----------------------------------
+
+        [Test]
+        public void GenerateRandomLevel_EveryHeadHasLine()
+        {
+            for (int run = 0; run < 50; run++)
+            {
+                var heads = _boardLogic.GenerateRandomLevel(5, 5, 6);
+                foreach (var head in heads)
+                    Assert.IsTrue(head.line != null && head.line.Count > 0,
+                        $"Head at {head.coordinates} has no line on run {run}");
+            }
+        }
+
+        [Test]
+        public void GenerateRandomLevel_FirstLineCell_IsBehindHead()
+        {
+            for (int run = 0; run < 50; run++)
+            {
+                var heads = _boardLogic.GenerateRandomLevel(5, 5, 6);
+                foreach (var head in heads)
+                {
+                    var expected = head.coordinates - DirVec(head.direction);
+                    Assert.AreEqual(expected, head.line[0].coordinates,
+                        $"Head at {head.coordinates} ({head.direction}) first line cell wrong on run {run}");
+                }
+            }
+        }
+
+        [Test]
+        public void GenerateRandomLevel_LineNeverEntersOwnLineOfSight()
+        {
+            for (int run = 0; run < 50; run++)
+            {
+                var heads = _boardLogic.GenerateRandomLevel(5, 5, 6);
+                foreach (var head in heads)
+                {
+                    var los = LineOfSight(head.coordinates, head.direction, 5, 5);
+                    foreach (var cell in head.line)
+                        Assert.IsFalse(los.Contains(cell.coordinates),
+                            $"Head at {head.coordinates} ({head.direction}) line cell {cell.coordinates} in its own line of sight, run {run}");
+                }
+            }
+        }
+
+        [Test]
+        public void GenerateRandomLevel_LinesAreContiguousAndInBounds()
+        {
+            for (int run = 0; run < 50; run++)
+            {
+                var heads = _boardLogic.GenerateRandomLevel(5, 5, 6);
+                foreach (var head in heads)
+                {
+                    var prev = head.coordinates;
+                    foreach (var cell in head.line)
+                    {
+                        var coord = cell.coordinates;
+                        Assert.IsTrue(coord.x >= 0 && coord.x < 5 && coord.y >= 0 && coord.y < 5,
+                            $"Line cell {coord} out of bounds on run {run}");
+                        Assert.AreEqual(1, (coord - prev).sqrMagnitude,
+                            $"Line cell {coord} not adjacent to {prev} on run {run}");
+                        prev = coord;
+                    }
+                }
+            }
+        }
+
+        [Test]
+        public void GenerateRandomLevel_NoCellsOverlap()
+        {
+            for (int run = 0; run < 50; run++)
+            {
+                var heads = _boardLogic.GenerateRandomLevel(5, 5, 6);
+                var seen = new HashSet<Vector2Int>();
+
+                foreach (var head in heads)
+                {
+                    Assert.IsTrue(seen.Add(head.coordinates),
+                        $"Head cell {head.coordinates} overlaps on run {run}");
+                    foreach (var cell in head.line)
+                        Assert.IsTrue(seen.Add(cell.coordinates),
+                            $"Line cell {cell.coordinates} overlaps on run {run}");
+                }
+            }
+        }
+
+        // ---- Lines: validation ---------------------------------------------
+
+        [Test]
+        public void ValidateBoard_ValidHeadWithLine_Passes()
+        {
+            // Head at (2,2) facing Up; line cell (2,1) is directly behind — direction is Down.
+            var heads = new List<HeadData>
+            {
+                new HeadData
+                {
+                    coordinates = new Vector2Int(2, 2),
+                    direction = Direction.Up,
+                    line = new List<LineCell>
+                    {
+                        new LineCell { coordinates = new Vector2Int(2, 1), direction = Direction.Down }
+                    }
+                }
+            };
+
+            var result = _boardLogic.ValidateBoard(new BoardValidateInput
+            { width = 5, height = 5, heads = heads });
+
+            Assert.IsTrue(result.isValid,
+                string.Join(", ", result.violations.ConvertAll(v => $"{v.coordinates} {v.reason}")));
+        }
+
+        [Test]
+        public void ValidateBoard_HeadWithNoLine_Fails()
+        {
+            var heads = new List<HeadData>
+            {
+                new HeadData { coordinates = new Vector2Int(2, 2), direction = Direction.Up }
+            };
+
+            var result = _boardLogic.ValidateBoard(new BoardValidateInput
+            { width = 5, height = 5, heads = heads });
+
+            Assert.IsFalse(result.isValid);
+            Assert.IsTrue(HasReason(result, "has no line"));
+        }
+
+        [Test]
+        public void ValidateBoard_LineInOwnLineOfSight_Fails()
+        {
+            // (2,3) is straight ahead of head at (2,2) facing Up — in the LOS.
+            var heads = new List<HeadData>
+            {
+                new HeadData
+                {
+                    coordinates = new Vector2Int(2, 2),
+                    direction = Direction.Up,
+                    line = new List<LineCell>
+                    {
+                        new LineCell { coordinates = new Vector2Int(2, 3), direction = Direction.Up }
+                    }
+                }
+            };
+
+            var result = _boardLogic.ValidateBoard(new BoardValidateInput
+            { width = 5, height = 5, heads = heads });
+
+            Assert.IsFalse(result.isValid);
+            Assert.IsTrue(HasReason(result, "line crosses its own head's line of sight"));
+        }
+
+        [Test]
+        public void ValidateBoard_NonContiguousLine_Fails()
+        {
+            var heads = new List<HeadData>
+            {
+                new HeadData
+                {
+                    coordinates = new Vector2Int(2, 2),
+                    direction = Direction.Up,
+                    line = new List<LineCell>
+                    {
+                        new LineCell { coordinates = new Vector2Int(0, 0), direction = Direction.Left } // not adjacent to head
+                    }
+                }
+            };
+
+            var result = _boardLogic.ValidateBoard(new BoardValidateInput
+            { width = 5, height = 5, heads = heads });
+
+            Assert.IsFalse(result.isValid);
+            Assert.IsTrue(HasReason(result, "line is not contiguous"));
+        }
+
+        [Test]
+        public void ValidateBoard_OffBoardLineCell_Fails()
+        {
+            // Head at (0,2) facing Up; (0,1) is behind (valid), (-1,1) is off-board.
+            var heads = new List<HeadData>
+            {
+                new HeadData
+                {
+                    coordinates = new Vector2Int(0, 2),
+                    direction = Direction.Up,
+                    line = new List<LineCell>
+                    {
+                        new LineCell { coordinates = new Vector2Int(0, 1), direction = Direction.Down },
+                        new LineCell { coordinates = new Vector2Int(-1, 1), direction = Direction.Left }
+                    }
+                }
+            };
+
+            var result = _boardLogic.ValidateBoard(new BoardValidateInput
+            { width = 5, height = 5, heads = heads });
+
+            Assert.IsFalse(result.isValid);
+            Assert.IsTrue(HasReason(result, "line cell off-board"));
+        }
+
+        [Test]
+        public void ValidateBoard_OverlappingLines_Fails()
+        {
+            // Both heads claim (2,3) as their first line cell.
+            var heads = new List<HeadData>
+            {
+                new HeadData
+                {
+                    coordinates = new Vector2Int(2, 2),
+                    direction = Direction.Down,
+                    line = new List<LineCell>
+                    {
+                        new LineCell { coordinates = new Vector2Int(2, 3), direction = Direction.Up }
+                    }
+                },
+                new HeadData
+                {
+                    coordinates = new Vector2Int(2, 4),
+                    direction = Direction.Up,
+                    line = new List<LineCell>
+                    {
+                        new LineCell { coordinates = new Vector2Int(2, 3), direction = Direction.Down }
+                    }
+                }
+            };
+
+            var result = _boardLogic.ValidateBoard(new BoardValidateInput
+            { width = 5, height = 5, heads = heads });
+
+            Assert.IsFalse(result.isValid);
+            Assert.IsTrue(HasReason(result, "lines overlap"));
+        }
+
+        // ---- Lines: direction correctness ----------------------------------
+
+        [Test]
+        public void GenerateRandomLevel_FirstLineCellDirection_IsOppositeOfHead()
+        {
+            for (int run = 0; run < 50; run++)
+            {
+                var heads = _boardLogic.GenerateRandomLevel(5, 5, 6);
+                foreach (var head in heads)
+                {
+                    var first = head.line[0];
+                    Assert.AreEqual(head.direction.Opposite(), first.direction,
+                        $"Head at {head.coordinates} ({head.direction}) first line direction wrong on run {run}");
+                }
+            }
+        }
+
+        [Test]
+        public void GenerateRandomLevel_LineCellDirections_MatchSteps()
+        {
+            for (int run = 0; run < 50; run++)
+            {
+                var heads = _boardLogic.GenerateRandomLevel(5, 5, 6);
+                foreach (var head in heads)
+                {
+                    var prev = head.coordinates;
+                    foreach (var cell in head.line)
+                    {
+                        var expected = (cell.coordinates - prev).ToDirection();
+                        Assert.AreEqual(expected, cell.direction,
+                            $"Head at {head.coordinates} cell {cell.coordinates} direction mismatch on run {run}");
+                        prev = cell.coordinates;
+                    }
+                }
+            }
+        }
+
+        [Test]
+        public void ValidateBoard_LineCellDirectionMismatch_Fails()
+        {
+            // (2,1) is behind (2,2) Up — correct direction is Down; supplying Up should fail.
+            var heads = new List<HeadData>
+            {
+                new HeadData
+                {
+                    coordinates = new Vector2Int(2, 2),
+                    direction = Direction.Up,
+                    line = new List<LineCell>
+                    {
+                        new LineCell { coordinates = new Vector2Int(2, 1), direction = Direction.Up }
+                    }
+                }
+            };
+
+            var result = _boardLogic.ValidateBoard(new BoardValidateInput
+            { width = 5, height = 5, heads = heads });
+
+            Assert.IsFalse(result.isValid);
+            Assert.IsTrue(HasReason(result, "line direction mismatch"));
+        }
+
+        // ---- Helpers -------------------------------------------------------
+
+        private static bool HasReason(BoardValidateResult result, string reason) =>
+            result.violations.Exists(v => v.reason == reason);
+
+        private static Vector2Int DirVec(Direction dir)
+        {
+            switch (dir)
+            {
+                case Direction.Up: return new Vector2Int(0, 1);
+                case Direction.Down: return new Vector2Int(0, -1);
+                case Direction.Left: return new Vector2Int(-1, 0);
+                case Direction.Right: return new Vector2Int(1, 0);
+                default: return Vector2Int.zero;
+            }
+        }
+
+        private static HashSet<Vector2Int> LineOfSight(Vector2Int from, Direction dir, int width, int height)
+        {
+            var cells = new HashSet<Vector2Int>();
+            var step = DirVec(dir);
+            if (step == Vector2Int.zero)
+                return cells;
+
+            var c = from + step;
+            while (c.x >= 0 && c.x < width && c.y >= 0 && c.y < height)
+            {
+                cells.Add(c);
+                c += step;
+            }
+
+            return cells;
+        }
     }
 }
