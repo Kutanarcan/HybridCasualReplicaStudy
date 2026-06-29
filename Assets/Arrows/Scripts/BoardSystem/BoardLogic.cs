@@ -92,9 +92,9 @@ namespace ReplicaProjects.Arrows
         {
             headCount = Mathf.Clamp(headCount, 0, width * height);
 
-            // Most layouts succeed on the first try; the retry guards the rare case where a head
-            // can't be given a valid direction with a free cell behind it for its first line.
-            const int maxAttempts = 30;
+            // BuildLevel is solvable-by-construction, so it passes ValidateBoard on the first attempt;
+            // the loop is a cheap safety net only.
+            const int maxAttempts = 8;
             List<HeadData> heads = null;
             for (int attempt = 0; attempt < maxAttempts; attempt++)
             {
@@ -114,66 +114,41 @@ namespace ReplicaProjects.Arrows
             return heads;
         }
 
+        // Solvable-by-construction: arrows are placed one at a time and each new arrow's forward ray is
+        // kept clear of every already-placed arrow. The reverse of placement order is then always a
+        // valid clearing order — when an arrow is removed, the arrows still on the board are exactly the
+        // ones placed before it, which its ray was built to avoid; arrows placed after it are already
+        // gone. So every arrow is removable at its turn, with no reroll or search needed.
         private List<HeadData> BuildLevel(int width, int height, int headCount)
         {
+            // Full shuffle of every cell: each is tried in turn as a candidate head.
             var indices = PickRandomArray(new PickRandomArrayInput
             {
                 boardSize = width * height,
-                headCount = headCount
+                headCount = width * height
             });
 
-            var heads = new List<HeadData>(indices.Length);
-            var allowed = new HashSet<Direction>();
-
-            // Every head and every cell reserved as a "behind" first-line cell. Seeded with all head
-            // positions up front so a head is never placed onto another head's required first cell.
+            var heads = new List<HeadData>(headCount);
             var occupied = new HashSet<int>();
+
             foreach (var index in indices)
-                occupied.Add(index);
-
-            for (int i = 0; i < indices.Length; i++)
             {
-                var coord = new Vector2Int(indices[i] % width, indices[i] / width);
+                if (heads.Count >= headCount)
+                    break;
 
-                allowed.Clear();
-                allowed.AddRange(AllDirections);
+                if (occupied.Contains(index))
+                    continue;
 
-                var corner = EvaluateCorner(new BoardCornerEvaluateInput
-                {
-                    coordinates = coord,
-                    width = width,
-                    height = height
-                });
-                allowed.RemoveRange(corner.bannedDirections);
+                var coord = new Vector2Int(index % width, index / width);
 
-                for (int j = 0; j < heads.Count; j++)
-                {
-                    var result = EvaluateIntersection(new BoardIntersectionEvaluateInput
-                    {
-                        coordinateA = coord,
-                        coordinateB = heads[j].coordinates,
-                        directionB = heads[j].direction
-                    });
+                var direction = PickConstructiveDirection(coord, width, height, occupied);
+                if (direction == Direction.None)
+                    continue;
 
-                    if (result.HasIntersection)
-                        allowed.RemoveRange(result.bannedDirections);
-                }
-
-                // A head needs a free cell directly behind it for its mandatory first line cell.
-                RemoveBlockedBehindDirections(allowed, coord, width, height, occupied);
-
-                var direction = PickDirection(allowed, corner.bannedDirections, width, height);
-                heads.Add(new HeadData { coordinates = coord, direction = direction });
-
-                // Reserve the behind cell so later heads and lines can't take it.
-                if (direction != Direction.None)
-                {
-                    var behind = coord - direction.ToVector2Int();
-                    occupied.Add(behind.y * width + behind.x);
-                }
+                occupied.Add(index); // reserve the head cell
+                var line = GrowLine(coord, direction, width, height, occupied);
+                heads.Add(new HeadData { coordinates = coord, direction = direction, line = line });
             }
-
-            GrowLines(heads, width, height, occupied);
 
             return heads;
         }
@@ -181,33 +156,50 @@ namespace ReplicaProjects.Arrows
         // Number of extra (random-walk) line cells beyond the mandatory first cell.
         private const int MaxExtraLineCells = 15;
 
-        // Bans directions whose cell directly behind the head is off-board or already taken.
-        private static void RemoveBlockedBehindDirections(HashSet<Direction> allowed, Vector2Int coord,
-                                                          int width, int height, HashSet<int> occupied)
+        // Picks a random direction whose behind cell is free (room for the mandatory first line cell)
+        // and whose forward ray to the edge is clear of already-placed arrows. None if no direction
+        // qualifies, so the candidate cell is skipped.
+        private Direction PickConstructiveDirection(Vector2Int coord, int width, int height,
+                                                    HashSet<int> occupied)
         {
-            var blocked = new List<Direction>();
-            foreach (var dir in allowed)
+            var dirs = new[] { Direction.Up, Direction.Down, Direction.Left, Direction.Right };
+            for (int i = dirs.Length - 1; i > 0; i--)
+            {
+                int j = Random.Range(0, i + 1);
+                (dirs[i], dirs[j]) = (dirs[j], dirs[i]);
+            }
+
+            foreach (var dir in dirs)
             {
                 var behind = coord - dir.ToVector2Int();
                 if (!InBounds(behind, width, height) || occupied.Contains(behind.y * width + behind.x))
-                    blocked.Add(dir);
+                    continue;
+
+                if (ForwardRayClear(coord, dir, width, height, occupied))
+                    return dir;
             }
 
-            allowed.RemoveRange(blocked);
+            return Direction.None;
         }
 
-        // occupied already holds every head + each head's reserved behind cell.
-        private void GrowLines(List<HeadData> heads, int width, int height, HashSet<int> occupied)
+        // True when no already-placed arrow occupies the ray from the head to the board edge.
+        private static bool ForwardRayClear(Vector2Int head, Direction direction,
+                                            int width, int height, HashSet<int> occupied)
         {
-            for (int i = 0; i < heads.Count; i++)
+            var step = direction.ToVector2Int();
+            var c = head + step;
+            while (InBounds(c, width, height))
             {
-                var head = heads[i];
-                head.line = GrowLine(head.coordinates, head.direction, width, height, occupied);
-                heads[i] = head;
+                if (occupied.Contains(c.y * width + c.x))
+                    return false;
+                c += step;
             }
+
+            return true;
         }
 
-        // occupied is mutated as extra cells are claimed; forbidden = this head's own line of sight.
+        // occupied is mutated as the behind cell and extra cells are claimed; forbidden = this head's
+        // own line of sight (the first cell is behind the head, never in its forward ray).
         private List<LineCell> GrowLine(Vector2Int head, Direction direction,
                                         int width, int height, HashSet<int> occupied)
         {
@@ -215,9 +207,10 @@ namespace ReplicaProjects.Arrows
             if (direction == Direction.None)
                 return line;
 
-            // Mandatory first cell: directly behind the head. It was reserved during placement, so
-            // it is guaranteed in-bounds, free, and (being behind) never in the forward line of sight.
+            // Mandatory first cell: directly behind the head. PickConstructiveDirection guarantees it
+            // is in-bounds and free, and (being behind) it is never in the forward line of sight.
             var behind = head - direction.ToVector2Int();
+            occupied.Add(behind.y * width + behind.x); // claim it before random-walking further
             line.Add(new LineCell { coordinates = behind, direction = direction.Opposite() });
             var cursor = behind;
 
@@ -290,26 +283,6 @@ namespace ReplicaProjects.Arrows
             }
         }
 
-        private Direction PickDirection(HashSet<Direction> allowed, List<Direction> hardBanned, int width, int height)
-        {
-            if (allowed.Count == 0)
-            {
-                allowed.AddRange(AllDirections);
-                allowed.RemoveRange(hardBanned);
-                if (allowed.Count == 0)
-                    return Direction.None;
-            }
-
-            int pick = Random.Range(0, allowed.Count);
-            foreach (var dir in allowed)
-            {
-                if (pick-- == 0)
-                    return dir;
-            }
-
-            return Direction.None;
-        }
-
         public BoardValidateResult ValidateBoard(BoardValidateInput input)
         {
             var violations = new List<BoardViolation>();
@@ -374,6 +347,10 @@ namespace ReplicaProjects.Arrows
                 }
 
                 ValidateLines(input, violations);
+
+                // Only meaningful once the structure is sound (cell ownership is well-defined).
+                if (violations.Count == 0)
+                    ValidateSolvability(input, violations);
             }
 
             return new BoardValidateResult
@@ -452,6 +429,85 @@ namespace ReplicaProjects.Arrows
                     prev = coord;
                 }
             }
+        }
+
+        // Solvability: a head can be removed only when its forward ray (head -> board edge) holds no
+        // cell still owned by a present head. Removing a chunk only frees cells, so greedily removing
+        // every currently-clear head to a fixpoint reaches the same set regardless of order. Any head
+        // that survives the fixpoint is part of a deadlock (e.g. two heads each in the other's ray).
+        private void ValidateSolvability(BoardValidateInput input, List<BoardViolation> violations)
+        {
+            var heads = input.heads;
+            int width = input.width;
+            int height = input.height;
+
+            if (heads == null || heads.Count == 0)
+                return;
+
+            // owner[index] = list-index of the head occupying the cell, or -1 if empty.
+            var owner = new int[width * height];
+            for (int i = 0; i < owner.Length; i++)
+                owner[i] = -1;
+
+            for (int i = 0; i < heads.Count; i++)
+            {
+                var head = heads[i];
+                owner[head.coordinates.y * width + head.coordinates.x] = i;
+
+                if (head.line == null)
+                    continue;
+
+                foreach (var cell in head.line)
+                    owner[cell.coordinates.y * width + cell.coordinates.x] = i;
+            }
+
+            var removed = new bool[heads.Count];
+            bool changed = true;
+            while (changed)
+            {
+                changed = false;
+                for (int i = 0; i < heads.Count; i++)
+                {
+                    if (removed[i])
+                        continue;
+
+                    if (IsRayClear(i, heads[i], owner, removed, width, height))
+                    {
+                        removed[i] = true;
+                        changed = true;
+                    }
+                }
+            }
+
+            for (int i = 0; i < heads.Count; i++)
+                if (!removed[i])
+                    violations.Add(new BoardViolation
+                    {
+                        coordinates = heads[i].coordinates,
+                        reason = "deadlocked: path can never clear"
+                    });
+        }
+
+        // True when no still-present head occupies the ray from this head to the board edge. The head's
+        // own cells are never in front of it (self line-of-sight rule), but they're excluded anyway.
+        private static bool IsRayClear(int headIndex, HeadData head, int[] owner, bool[] removed,
+                                       int width, int height)
+        {
+            var step = head.direction.ToVector2Int();
+            if (step == Vector2Int.zero)
+                return false; // a head with no direction can never be removed
+
+            var c = head.coordinates + step;
+            while (InBounds(c, width, height))
+            {
+                int o = owner[c.y * width + c.x];
+                if (o != -1 && o != headIndex && !removed[o])
+                    return false;
+
+                c += step;
+            }
+
+            return true;
         }
 
         private static bool InBounds(Vector2Int coord, int width, int height) =>

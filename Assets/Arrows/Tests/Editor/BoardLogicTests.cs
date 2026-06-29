@@ -480,6 +480,97 @@ namespace ReplicaProjects.Arrows.Tests
             Assert.IsTrue(HasReason(result, "line direction mismatch"));
         }
 
+        // ---- Solvability (deadlock) ----------------------------------------
+
+        [Test]
+        public void ValidateBoard_CircularRayDependency_Fails()
+        {
+            // X is blocked by Y's line cell (4,1) and Y is blocked by X's line cell (0,3); the heads
+            // never face each other, so the structure is valid but the board can never be cleared.
+            var heads = new List<HeadData>
+            {
+                new HeadData
+                {
+                    coordinates = new Vector2Int(1, 1),
+                    direction = Direction.Right,
+                    line = new List<LineCell>
+                    {
+                        new LineCell { coordinates = new Vector2Int(0, 1), direction = Direction.Left },
+                        new LineCell { coordinates = new Vector2Int(0, 2), direction = Direction.Up },
+                        new LineCell { coordinates = new Vector2Int(0, 3), direction = Direction.Up }
+                    }
+                },
+                new HeadData
+                {
+                    coordinates = new Vector2Int(3, 3),
+                    direction = Direction.Left,
+                    line = new List<LineCell>
+                    {
+                        new LineCell { coordinates = new Vector2Int(4, 3), direction = Direction.Right },
+                        new LineCell { coordinates = new Vector2Int(4, 2), direction = Direction.Down },
+                        new LineCell { coordinates = new Vector2Int(4, 1), direction = Direction.Down }
+                    }
+                }
+            };
+
+            var result = _boardLogic.ValidateBoard(new BoardValidateInput
+            { width = 5, height = 5, heads = heads });
+
+            Assert.IsFalse(result.isValid);
+            Assert.IsTrue(HasReason(result, "deadlocked: path can never clear"));
+        }
+
+        [Test]
+        public void GenerateRandomLevel_IsAlwaysSolvable_LargeBoard()
+        {
+            // Direct regression guard: a big, dense board must always be solvable. ValidateBoard now
+            // includes the deadlock/solvability check, so isValid implies a valid clearing order exists.
+            for (int run = 0; run < 100; run++)
+            {
+                var heads = _boardLogic.GenerateRandomLevel(15, 15, 30);
+                var result = _boardLogic.ValidateBoard(new BoardValidateInput
+                { width = 15, height = 15, heads = heads });
+
+                Assert.IsTrue(result.isValid,
+                    $"Generated 15x15 level not solvable on run {run}: " +
+                    string.Join(", ", result.violations.ConvertAll(v => $"{v.coordinates} {v.reason}")));
+            }
+        }
+
+        [Test]
+        public void ValidateBoard_SolvableForcedOrder_Passes()
+        {
+            // Q has a clear ray (removable now); P's ray is blocked by Q's head until Q is gone, so
+            // the forced order Q -> P clears the board.
+            var heads = new List<HeadData>
+            {
+                new HeadData
+                {
+                    coordinates = new Vector2Int(2, 2),
+                    direction = Direction.Right,
+                    line = new List<LineCell>
+                    {
+                        new LineCell { coordinates = new Vector2Int(1, 2), direction = Direction.Left }
+                    }
+                },
+                new HeadData
+                {
+                    coordinates = new Vector2Int(3, 2),
+                    direction = Direction.Down,
+                    line = new List<LineCell>
+                    {
+                        new LineCell { coordinates = new Vector2Int(3, 3), direction = Direction.Up }
+                    }
+                }
+            };
+
+            var result = _boardLogic.ValidateBoard(new BoardValidateInput
+            { width = 5, height = 5, heads = heads });
+
+            Assert.IsTrue(result.isValid,
+                string.Join(", ", result.violations.ConvertAll(v => $"{v.coordinates} {v.reason}")));
+        }
+
         // ---- Helpers -------------------------------------------------------
 
         private static bool HasReason(BoardValidateResult result, string reason) =>
