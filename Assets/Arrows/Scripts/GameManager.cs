@@ -27,7 +27,6 @@ namespace ReplicaProjects.Arrows
             Create();
             Initialize();
             InitializePresentation();
-            InitializeSelection();
         }
 
         private void Create()
@@ -41,6 +40,9 @@ namespace ReplicaProjects.Arrows
             _endScreenPresentation = Instantiate(endScreenPresentationPrefab);
 
             _cameraController = gameObject.AddComponent<CameraController>();
+
+            _selection = gameObject.AddComponent<Selection>();
+            _selection.Initialize(Camera.main);
         }
 
         private void Initialize()
@@ -52,16 +54,23 @@ namespace ReplicaProjects.Arrows
             _healthOrchestrator.Initialize(MAX_HEALTH);
             _cameraController.Initialize(Camera.main, width, height);
             _healthOrchestrator.Died += OnFinishedWithDefeat;
+            _boardPresentation.AnimationFinished += OnAnyArrowHeadAnimationFinished;
             _boardController.Board.NoHeadLeft += OnFinishedWithVictory;
             _endScreenPresentation.InteractionButtonPressed += OnEndGameButtonPressed;
+
+            _selection.OnNodeSelected += OnNodeSelected;
+
         }
 
 
         private void DeInitialize()
         {
+            _selection.OnNodeSelected -= OnNodeSelected;
+
             _healthOrchestrator.Died -= OnFinishedWithDefeat;
             _boardController.Board.NoHeadLeft -= OnFinishedWithVictory;
             _endScreenPresentation.InteractionButtonPressed -= OnEndGameButtonPressed;
+            _boardPresentation.AnimationFinished -= OnAnyArrowHeadAnimationFinished;
 
             _boardController.DeInitialize();
             _healthOrchestrator.DeInitialize();
@@ -80,60 +89,58 @@ namespace ReplicaProjects.Arrows
 
         private void OnFinishedWithDefeat()
         {
-            isFinished =true;
+            isFinished = true;
             _endScreenPresentation.SetState(false);
         }
+
         private void OnFinishedWithVictory()
         {
-            isFinished =true;
+            isFinished = true;
+        }
+
+        private void OnAnyArrowHeadAnimationFinished()
+        {
+            if (!isFinished)
+                return;
+
             _endScreenPresentation.SetState(true);
         }
 
         private void InitializePresentation()
         {
-            var boardItemDataList = new List<BoardItemData>();
+            var arrowDataList = new List<ArrowPresentationData>();
             var board = _boardController.Board;
             var grid = _boardController.Grid;
 
             foreach (var headIndex in board.dataArrays.headIndexArray)
             {
                 var headCoord = grid.IndexToCoordinates(headIndex);
-
-                boardItemDataList.Add(new BoardItemData()
-                {
-                    coordinates = headCoord,
-                    headCoordinates = headCoord,
-                    direction = board.dataArrays.directionArray[headIndex],
-                    type = BoardItemType.Arrow
-                });
+                var line = new List<LineCell>();
 
                 int[] lineChunk = board.GetLineChuck(headIndex);
-
-                if (lineChunk == null)
-                    continue;
-
-                foreach (var chunkIndex in lineChunk)
+                if (lineChunk != null)
                 {
-                    boardItemDataList.Add(new BoardItemData()
+                    foreach (var chunkIndex in lineChunk)
                     {
-                        coordinates = grid.IndexToCoordinates(chunkIndex),
-                        headCoordinates = headCoord,
-                        direction = board.dataArrays.directionArray[chunkIndex],
-                        type = BoardItemType.Line
-                    });
+                        line.Add(new LineCell
+                        {
+                            coordinates = grid.IndexToCoordinates(chunkIndex),
+                            direction = board.dataArrays.directionArray[chunkIndex]
+                        });
+                    }
                 }
+
+                arrowDataList.Add(new ArrowPresentationData()
+                {
+                    headCoordinates = headCoord,
+                    headDirection = board.dataArrays.directionArray[headIndex],
+                    line = line
+                });
             }
 
-            _boardPresentation.Initialize(boardItemDataList);
+            _boardPresentation.Initialize(arrowDataList);
             _healthPresentation.Initialize(_healthOrchestrator.currentHealth);
 
-        }
-
-        private void InitializeSelection()
-        {
-            _selection = gameObject.AddComponent<Selection>();
-            _selection.Initialize(Camera.main);
-            _selection.OnNodeSelected += OnNodeSelected;
         }
 
         private void OnNodeSelected(Vector2Int coordinates)

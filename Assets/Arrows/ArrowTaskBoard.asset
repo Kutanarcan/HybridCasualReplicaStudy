@@ -101,17 +101,11 @@ MonoBehaviour:
     Description: Arrow Animation
     Type: 1
     Estimation: 0
-    Progress: 0
+    Progress: 2
     Subtasks: []
   - Id: 15
     Description: Line Animation
     Type: 1
     Estimation: 0
-    Progress: 0
-    Subtasks: []
-  - Id: 17
-    Description: Pool System
-    Type: 1
-    Estimation: 2
-    Progress: 0
+    Progress: 2
     Subtasks: []

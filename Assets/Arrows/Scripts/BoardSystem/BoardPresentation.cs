@@ -1,33 +1,26 @@
-﻿using DG.Tweening;
+using DG.Tweening;
 using System.Collections.Generic;
 using UnityEngine;
 
 namespace ReplicaProjects.Arrows
 {
-    public enum BoardItemType
+    public struct ArrowPresentationData
     {
-        Arrow,
-        Line
-    }
-
-    public struct BoardItemData
-    {
-        public Vector2Int coordinates;
-        public Vector2Int headCoordinates; // owning head's coordinate (head items use their own)
-        public Direction direction;
-        public BoardItemType type;
+        public Vector2Int headCoordinates;
+        public Direction headDirection;
+        public List<LineCell> line; // ordered head -> tail, EXCLUDES the head cell
     }
 
     public class PresentationData
     {
-        public GameObject head;
-        public readonly List<GameObject> line = new();
+        public ArrowHeadView head;
     }
 
     public class BoardPresentation : MonoBehaviour
     {
-        [SerializeField] private GameObject _ArrowPrefab;
-        [SerializeField] private GameObject _LinePrefab;
+        public event System.Action AnimationFinished;
+
+        [SerializeField] private ArrowHeadView _ArrowPrefab;
         [SerializeField] private GameObject _DotPrefab;
 
         private readonly List<GameObject> _dotList = new();
@@ -36,50 +29,50 @@ namespace ReplicaProjects.Arrows
 
         private Dictionary<Vector2Int, PresentationData> _presentationObjectTable;
 
-        public void Initialize(BoardItemData headData, List<BoardItemData> boardItemDataList)
+        public void Initialize(List<ArrowPresentationData> arrowDataList)
         {
+            _presentationObjectTable = new(arrowDataList.Count);
 
-        }
-
-        public void Initialize(List<BoardItemData> boardItemDataList)
-        {
-            _presentationObjectTable = new(boardItemDataList.Count);
-
-            for (int i = 0; i < boardItemDataList.Count; i++)
+            for (int i = 0; i < arrowDataList.Count; i++)
             {
-                var boardItemData = boardItemDataList[i];
-                var prefab = SelectPrefab(boardItemData.type);
+                var arrowData = arrowDataList[i];
 
-                if (prefab == null)
-                    continue;
+                var view = Instantiate(_ArrowPrefab);
+                view.transform.position = ToWorld(arrowData.headCoordinates);
+                view.transform.rotation = arrowData.headDirection.ToQuaternion();
 
-                var boardItem = Instantiate(prefab);
-                var dot = Instantiate(_DotPrefab);
+                // Body polyline: head cell first, then each line cell in head -> tail order.
+                var points = new List<Vector3>(arrowData.line.Count + 1) { ToWorld(arrowData.headCoordinates) };
+                SpawnDot(arrowData.headCoordinates);
 
-                dot.transform.position = new Vector3(boardItemData.coordinates.x, boardItemData.coordinates.y, 0);
-                _dotList.Add(dot);
+                foreach (var cell in arrowData.line)
+                {
+                    points.Add(ToWorld(cell.coordinates));
+                    SpawnDot(cell.coordinates);
+                }
 
-                boardItem.transform.position = new Vector3(boardItemData.coordinates.x, boardItemData.coordinates.y);
-                boardItem.transform.rotation = boardItemData.direction.ToQuaternion();
+                view.Initialize(points, arrowData.headDirection);
 
-                _boardItemList.Add(boardItem);
-                Add(boardItemData, boardItem);
+                view.AnimationFinished += OnAnimationFinished;
+
+                _boardItemList.Add(view.gameObject);
+                _presentationObjectTable[arrowData.headCoordinates] = new PresentationData { head = view };
             }
         }
 
-        private void Add(BoardItemData itemData, GameObject boardItem)
+        private void OnAnimationFinished()
         {
-            // Group head + line visuals under the owning head's coordinate.
-            if (!_presentationObjectTable.TryGetValue(itemData.headCoordinates, out var data))
-            {
-                data = new PresentationData();
-                _presentationObjectTable.Add(itemData.headCoordinates, data);
-            }
+            AnimationFinished?.Invoke();
+        }
 
-            if (itemData.type == BoardItemType.Arrow)
-                data.head = boardItem;
-            else
-                data.line.Add(boardItem);
+        private static Vector3 ToWorld(Vector2Int coordinates) =>
+            new(coordinates.x, coordinates.y, 0);
+
+        private void SpawnDot(Vector2Int coordinates)
+        {
+            var dot = Instantiate(_DotPrefab);
+            dot.transform.position = ToWorld(coordinates);
+            _dotList.Add(dot);
         }
 
         public void DeInitialize()
@@ -106,6 +99,11 @@ namespace ReplicaProjects.Arrows
                 Destroy(boardItem);
             }
 
+            foreach (var data in _presentationObjectTable)
+            {
+                data.Value.head.AnimationFinished -= OnAnimationFinished;
+            }
+
             _boardItemList.Clear();
             _sequence?.Kill();
             _presentationObjectTable.Clear();
@@ -116,29 +114,8 @@ namespace ReplicaProjects.Arrows
             if (!_presentationObjectTable.TryGetValue(headCoordinate, out var data))
                 return;
 
-            _presentationObjectTable.Remove(headCoordinate);
-
             if (data.head != null)
-                data.head.SetActive(false); // TODO Animation Later
-
-            foreach (var lineObject in data.line)
-                if (lineObject != null)
-                    lineObject.SetActive(false);
-        }
-
-
-        private GameObject SelectPrefab(BoardItemType type)
-        {
-            switch (type)
-            {
-                case BoardItemType.Arrow:
-                    return _ArrowPrefab;
-                case BoardItemType.Line:
-                    return _LinePrefab;
-            }
-
-            return null;
-
+                data.head.AnimateEmpty();
         }
 
         private void AnimateDots(List<int> indexList)

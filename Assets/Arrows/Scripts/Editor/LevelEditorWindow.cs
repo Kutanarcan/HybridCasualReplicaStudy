@@ -263,7 +263,7 @@ namespace ReplicaProjects.Arrows.EditorTools
             DrawBrushButton(Direction.Right, "▶");
 
             GUILayout.Space(8f);
-            DrawModeToggle(BrushMode.Line, "Line", LineColor);
+            DrawModeToggle(BrushMode.Line, "Line", EraseColor);
             GUILayout.Space(4f);
             DrawModeToggle(BrushMode.Erase, "Erase", EraseColor);
             EditorGUILayout.EndHorizontal();
@@ -395,8 +395,30 @@ namespace ReplicaProjects.Arrows.EditorTools
         private static readonly Color ClearColor = new Color(0.80f, 0.45f, 0.25f);
         private static readonly Color CellColor = new Color(0.22f, 0.22f, 0.22f);
         private static readonly Color ViolationColor = new Color(0.60f, 0.20f, 0.20f);
-        private static readonly Color LineColor = new Color(0.55f, 0.55f, 0.60f);
         private static readonly Color SelectedColor = new Color(0.95f, 0.95f, 0.40f);
+
+        // 50 distinct colors, no red (reserved for violations).
+        // Golden-ratio hue step: each index lands as far as possible from all previous ones.
+        private static readonly Color[] HeadColorPool = BuildColorPool();
+
+        private static Color[] BuildColorPool()
+        {
+            var pool = new Color[50];
+            float h = 0f;
+            for (int i = 0; i < 50; i++)
+            {
+                h = (h + 0.618034f) % 1f; // golden-ratio conjugate
+                // Remap [0,1] → [0.08, 0.93] to keep red (~0° and ~360°) out of range.
+                float safeHue = 0.08f + h * 0.85f;
+                float sat = i % 2 == 0 ? 0.80f : 0.65f;
+                float val = i % 3 == 0 ? 0.95f : i % 3 == 1 ? 0.80f : 1.00f;
+                pool[i] = Color.HSVToRGB(safeHue, sat, val);
+            }
+            return pool;
+        }
+
+        private static Color PoolColor(int headIndex) =>
+            HeadColorPool[headIndex % HeadColorPool.Length];
 
         private static Color DirectionColor(Direction dir)
         {
@@ -483,9 +505,9 @@ namespace ReplicaProjects.Arrows.EditorTools
                     if (violation)
                         fill = ViolationColor;
                     else if (isHead)
-                        fill = Color.Lerp(CellColor, DirectionColor(_heads[headIdx].direction), 0.25f);
+                        fill = Color.Lerp(CellColor, PoolColor(headIdx), 0.55f);
                     else if (isLine)
-                        fill = Color.Lerp(CellColor, LineColor, 0.5f);
+                        fill = Color.Lerp(CellColor, PoolColor(lineOwner), 0.35f);
 
                     EditorGUI.DrawRect(inner, fill);
 
@@ -494,7 +516,7 @@ namespace ReplicaProjects.Arrows.EditorTools
                         var head = _heads[headIdx];
                         if (head.direction != Direction.None)
                         {
-                            glyphStyle.normal.textColor = violation ? Color.white : DirectionColor(head.direction);
+                            glyphStyle.normal.textColor = violation ? Color.white : PoolColor(headIdx);
                             GUI.Label(inner, Glyph(head.direction), glyphStyle);
                         }
 
@@ -511,13 +533,14 @@ namespace ReplicaProjects.Arrows.EditorTools
                         var lineCell = _heads[lineOwner].line[lineCellIdx];
                         if (lineCell.direction != Direction.None)
                         {
+                            var c = PoolColor(lineOwner);
                             var dimStyle = new GUIStyle(glyphStyle);
-                            dimStyle.normal.textColor = new Color(1f, 1f, 1f, 0.55f);
+                            dimStyle.normal.textColor = new Color(c.r, c.g, c.b, 0.60f);
                             dimStyle.fontSize = 16;
-                            GUI.Label(inner, Glyph(lineCell.direction), dimStyle);
+                            GUI.Label(inner, GlyphLine(lineCell.direction), dimStyle);
                         }
                         // Small owner index in corner links cell to its head.
-                        GUI.Label(new Rect(inner.x + 5f, inner.y + 3f, inner.width, 20f),
+                        GUI.Label(new Rect(inner.x + 4f, inner.y + 3f, inner.width, 20f),
                             lineOwner.ToString(), numberStyle);
                     }
 
@@ -754,6 +777,18 @@ namespace ReplicaProjects.Arrows.EditorTools
                 case Direction.Down: return "▼";
                 case Direction.Left: return "◀";
                 case Direction.Right: return "▶";
+                default: return string.Empty;
+            }
+        }
+
+        private static string GlyphLine(Direction dir)
+        {
+            switch (dir)
+            {
+                case Direction.Up: return "▲L";
+                case Direction.Down: return "▼L";
+                case Direction.Left: return "◀L";
+                case Direction.Right: return "▶L";
                 default: return string.Empty;
             }
         }
