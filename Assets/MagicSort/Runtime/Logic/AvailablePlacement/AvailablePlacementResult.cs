@@ -11,15 +11,15 @@ namespace ReplicaProjects.MagicSort
     }
     public readonly struct AvailablePlacementResult
     {
-        public readonly PlacementOutcome Outcome;
-        public readonly int MovedCount;
-        public readonly int SourceNewTop;
-        public readonly int TargetNewTop;
+        public readonly PlacementOutcome putcome;
+        public readonly int movedCount;
+        public readonly int sourceNewTop;
+        public readonly int targetNewTop;
 
-        public bool Success => Outcome == PlacementOutcome.Moved;
+        public bool Success => putcome == PlacementOutcome.Moved;
 
         private AvailablePlacementResult(PlacementOutcome outcome, int moved, int srcTop, int tgtTop)
-        { Outcome = outcome; MovedCount = moved; SourceNewTop = srcTop; TargetNewTop = tgtTop; }
+        { putcome = outcome; movedCount = moved; sourceNewTop = srcTop; targetNewTop = tgtTop; }
 
         public static AvailablePlacementResult Moved(int moved, int srcTop, int tgtTop)
         => new(PlacementOutcome.Moved, moved, srcTop, tgtTop);

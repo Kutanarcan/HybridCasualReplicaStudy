@@ -6,14 +6,14 @@ namespace ReplicaProjects.MagicSort
 {
     public class MagicSortLogic
     {
-        public bool IsBarEmpty(ReadOnlySpan<int> sequentialBarArray, int barIndex, int barHeight)
+        public bool IsBarEmpty(in SequentialBarArrayInput input, int barIndex)
         {
             // We just look at the first item on the bar
 
             return false;
         }
 
-        public bool IsBarFull(ReadOnlySpan<int> sequentialBarArray, int barIndex, int barHeight)
+        public bool IsBarFull(in SequentialBarArrayInput input, int barIndex)
         {
             // We just look at the last item on the bar
             return false;
@@ -23,31 +23,28 @@ namespace ReplicaProjects.MagicSort
             return sourceIndex == targetIndex;
         }
 
-        public bool IsBarSolved(ReadOnlySpan<int> sequentialBarArray, int barIndex, int barHeight)
+        public bool IsBarSolved(in SequentialBarArrayInput input, int barIndex)
         {
             // TODO: Look for first color same with others
             // Note: Empty bars cannot solvable, we either check IsBarFull or IsBarEmpty First
             return false;
         }
 
-        public bool IsAllBarsSolved(ReadOnlySpan<int> sequentialBarArray, int barHeight)
+        public bool IsAllBarsSolved(in SequentialBarArrayInput boardInput)
         {
             // TODO: Look for first color same with others, including Empty -> 0,0,0,0 - 1,1,1,1 - -1,-1,-1,-1 -> Solved because all same
             return false;
         }
 
-        public int GetTopBarIndexColorValue(ReadOnlySpan<int> sequentialBarArray, int barHeight, int barIndex)
+        public int GetTopBarIndexColorValue(in SequentialBarArrayInput input, int barIndex)
         {
             // TODO: Return last color index value from bar
             return 0;
         }
 
-        public AvailablePlacementResult EvaluateAvailableBarPlacement(
-            ReadOnlySpan<int> sequentialBarArray,
-            int barHeight,
-            int sourceBarIndex, int targetBarIndex)
+        public AvailablePlacementResult EvaluateAvailableBarPlacement(in SequentialBarArrayInput input, int sourceBarIndex, int targetBarIndex)
         {
-            Debug.Assert(!IsBarEmpty(sequentialBarArray, sourceBarIndex, barHeight));
+            Debug.Assert(!IsBarEmpty(input, sourceBarIndex));
 
             // Is Same bar -> No Move Count
             // Is Empty -> Calculate Move Count
