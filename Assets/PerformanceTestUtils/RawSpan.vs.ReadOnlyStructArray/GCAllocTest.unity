@@ -227,8 +227,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 51c05d89678e1c04bb42b5db5fcc9902, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  mode: 4
-  iterationsPerFrame: 5000
+  mode: 2
+  iterationsPerFrame: 50000
   barCount: 8
   barHeight: 4
 --- !u!1 &553577393
