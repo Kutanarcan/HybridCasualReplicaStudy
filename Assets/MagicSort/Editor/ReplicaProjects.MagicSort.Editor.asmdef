@@ -1,0 +1,17 @@
+{
+    "name": "ReplicaProjects.MagicSort.Editor",
+    "references": [
+        "ReplicaProjects.MagicSort"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
