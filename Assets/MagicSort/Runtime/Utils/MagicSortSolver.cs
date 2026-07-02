@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace BallSortDesigner
+namespace ReplicaProjects.MagicSort
 {
     public enum SolveStatus
     {
@@ -26,10 +26,12 @@ namespace BallSortDesigner
         // A bar with no balls: just the leading sentinel nibble.
         private const ulong EmptyBar = 1UL;
 
-        public static SolveResult Solve(IReadOnlyList<Bar> bars)
+        /// <param name="slots">Flat board, length barHeight*barCount, indexed bar*barHeight+slot;
+        /// each cell is a color index or <see cref="MagicSortLevel.Empty"/>.</param>
+        public static SolveResult Solve(int[] slots, int barHeight)
         {
-            int height = bars.Count > 0 ? bars[0].Capacity : 0;
-            var initial = Pack(bars);
+            int height = barHeight;
+            var initial = Pack(slots, barHeight);
 
             if (IsSolved(initial, height))
                 return new SolveResult { Status = SolveStatus.Solved, MinMoves = 0 };
@@ -110,16 +112,20 @@ namespace BallSortDesigner
 
         // ── Packed-bar primitives ──
 
-        private static ulong[] Pack(IReadOnlyList<Bar> bars)
+        private static ulong[] Pack(int[] slots, int barHeight)
         {
-            var packed = new ulong[bars.Count];
-            for (int i = 0; i < bars.Count; i++)
+            int barCount = barHeight > 0 ? slots.Length / barHeight : 0;
+            var packed = new ulong[barCount];
+            for (int b = 0; b < barCount; b++)
             {
                 ulong v = EmptyBar; // leading sentinel
-                var bar = bars[i];
-                for (int j = 0; j < bar.Count; j++)
-                    v = (v << 4) | (uint)(bar[j] + 1);
-                packed[i] = v;
+                for (int j = 0; j < barHeight; j++)
+                {
+                    int color = slots[b * barHeight + j];
+                    if (color == MagicSortLevel.Empty) break; // balls fill bottom-up; rest is empty
+                    v = (v << 4) | (uint)(color + 1);
+                }
+                packed[b] = v;
             }
             return packed;
         }

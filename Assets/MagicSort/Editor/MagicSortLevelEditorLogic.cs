@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace BallSortDesigner
+namespace ReplicaProjects.MagicSort
 {
     public struct MoveRecord
     {
@@ -101,7 +101,7 @@ namespace BallSortDesigner
         /// <summary>BFS solvability / min-move check of the current board (runtime rules).</summary>
         public SolveResult CheckCurrentState()
         {
-            return MagicSortSolver.Solve(_bars);
+            return MagicSortSolver.Solve(MagicSortFlat.Flatten(_bars, BarHeight), BarHeight);
         }
 
         private static List<Bar> Clone(IReadOnlyList<Bar> bars)

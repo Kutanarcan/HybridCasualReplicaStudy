@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace BallSortDesigner
+namespace ReplicaProjects.MagicSort
 {
     public sealed class Bar
     {

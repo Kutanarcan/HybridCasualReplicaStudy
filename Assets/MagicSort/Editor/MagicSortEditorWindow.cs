@@ -3,7 +3,7 @@ using System.IO;
 using System.Linq;
 using UnityEditor;
 using UnityEngine;
-using BallSortDesigner;
+using ReplicaProjects.MagicSort;
 
 public class MagicSortEditorWindow : EditorWindow
 {
@@ -60,10 +60,10 @@ public class MagicSortEditorWindow : EditorWindow
     private const int BarSpacing = 16;
     private const int BarHeight = 4;
 
-    [MenuItem("Tools/Ball Sort Designer")]
+    [MenuItem("Tools/Magic Sort Replica Level Designer")]
     public static void ShowWindow()
     {
-        var w = GetWindow<MagicSortEditorWindow>("Ball Sort Designer");
+        var w = GetWindow<MagicSortEditorWindow>("Magic Sort Replica Level Designer");
         w.minSize = new Vector2(500, 520);
     }
 
@@ -199,27 +199,28 @@ public class MagicSortEditorWindow : EditorWindow
 
     private void LoadWorkingCopy(MagicSortLevel level)
     {
-        var bars = level.ToBars();
+        var bars = MagicSortFlat.ToBars(level.slots, level.barHeight);
         if (_logic == null)
             _logic = new MagicSortLevelEditorLogic(bars);
         else
             _logic.LoadLevel(bars);
 
-        // Restore the config controls from the loaded layout.
-        _colorCount = Mathf.Max(1, CountColors(bars));
-        _emptyBars = Mathf.Max(0, bars.Count - _colorCount);
+        // Restore the config controls straight from the asset — colorCount is authored, not recomputed.
+        _colorCount = Mathf.Max(1, level.colorCount);
+        _emptyBars = Mathf.Max(0, level.barCount - level.colorCount);
         _selectedBar = -1;
         _solveResult = null;
         _dirty = false;
     }
 
-    private static int CountColors(IReadOnlyList<Bar> bars)
+    // Writes the current working board into a level asset (flat DOD layout + explicit dimensions).
+    private void WriteLevel(MagicSortLevel level)
     {
-        var seen = new HashSet<int>();
-        foreach (var bar in bars)
-            for (int i = 0; i < bar.Count; i++)
-                seen.Add(bar[i]);
-        return seen.Count;
+        var snap = _logic.Snapshot();
+        level.colorCount = _colorCount;
+        level.barHeight = BarHeight;
+        level.barCount = snap.Count;
+        level.slots = MagicSortFlat.Flatten(snap, BarHeight);
     }
 
     private bool ConfirmDiscard() => EditorUtility.DisplayDialog(
@@ -234,7 +235,7 @@ public class MagicSortEditorWindow : EditorWindow
             Directory.CreateDirectory(dir);
 
         var level = CreateInstance<MagicSortLevel>();
-        level.SetFromBars(_logic.Snapshot());
+        WriteLevel(level);
         AssetDatabase.CreateAsset(level, assetPath);
         AssetDatabase.SaveAssets();
 
@@ -260,7 +261,7 @@ public class MagicSortEditorWindow : EditorWindow
             return;
 
         var bars = _logic.Snapshot();
-        var result = MagicSortSolver.Solve(bars);
+        var result = MagicSortSolver.Solve(MagicSortFlat.Flatten(bars, BarHeight), BarHeight);
         _solveResult = result;
 
         if (result.Status == SolveStatus.Unsolvable)
@@ -277,7 +278,7 @@ public class MagicSortEditorWindow : EditorWindow
             return;
 
         Undo.RecordObject(_level, "Save Magic Sort Level");
-        _level.SetFromBars(bars);
+        WriteLevel(_level);
         EditorUtility.SetDirty(_level);
         AssetDatabase.SaveAssets();
         _dirty = false;

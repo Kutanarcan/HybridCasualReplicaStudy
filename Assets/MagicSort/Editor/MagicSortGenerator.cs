@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace BallSortDesigner
+namespace ReplicaProjects.MagicSort
 {
     public struct Metrics
     {
@@ -54,7 +54,7 @@ namespace BallSortDesigner
                 ShuffleInternal(bars, colorCount, depthLevel);
                 EmptyTheEmptyBars(bars, colorCount, fragLevel);
 
-                result = MagicSortSolver.Solve(bars);
+                result = MagicSortSolver.Solve(MagicSortFlat.Flatten(bars, barHeight), barHeight);
             }
             while (ensureSolvable && result.Status != SolveStatus.Solvable
                    && result.Status != SolveStatus.Solved && attempts < maxAttempts);
