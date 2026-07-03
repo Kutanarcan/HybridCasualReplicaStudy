@@ -45,7 +45,7 @@ namespace ReplicaProjects.MagicSort
             var bar = input.Bar(barIndex);
             var index = TopFilledSlotIndex(bar);
 
-            return index > 0 ? bar[index] : EMPTY_INDEX_VALUE;
+            return index >= 0 ? bar[index] : EMPTY_INDEX_VALUE;
         }
 
         public int TopFilledSlotIndex(System.ReadOnlySpan<int> bar)
@@ -83,7 +83,8 @@ namespace ReplicaProjects.MagicSort
 
         public AvailablePlacementResult EvaluateAvailableBarPlacement(in SequentialBarArrayInput input, int sourceBarIndex, int targetBarIndex)
         {
-            Debug.Assert(!IsBarEmpty(input, sourceBarIndex));
+            if (IsBarEmpty(input, sourceBarIndex))
+                return AvailablePlacementResult.Rejected(PlacementOutcome.SourceEmpty);
 
             // Is Same bar -> No Move Count
             if (IsSameBar(sourceBarIndex, targetBarIndex))
@@ -113,6 +114,42 @@ namespace ReplicaProjects.MagicSort
             int targetNewTop = sourceColor;
 
             return AvailablePlacementResult.Moved(movedCount, sourceNewTop, targetNewTop);
+        }
+
+        public TapResult EvaluateTap(in SequentialBarArrayInput input, int currentSource, int tappedBar)
+        {
+            if (currentSource < 0)
+            {
+                return IsBarEmpty(input, tappedBar)
+                    ? TapResult.Ignored()
+                    : TapResult.SourceSelected(tappedBar);
+            }
+
+            if (IsSameBar(currentSource, tappedBar))
+                return TapResult.Deselected(tappedBar);
+
+            var pour = EvaluateAvailableBarPlacement(input, currentSource, tappedBar);
+
+            return pour.Success
+                ? TapResult.Consumed(currentSource, tappedBar, pour)
+                : TapResult.Retargeted(currentSource, tappedBar, pour.outCome);
+        }
+
+        public void ApplyPour(System.Span<int> slots, int barHeight,
+                              int sourceBarIndex, int targetBarIndex, int movedCount)
+        {
+            int srcBase = sourceBarIndex * barHeight;
+            int tgtBase = targetBarIndex * barHeight;
+
+            int srcTop = TopFilledSlotIndex(slots.Slice(srcBase, barHeight));
+            int color = slots[srcBase + srcTop];
+            int tgtFirstFree = TopFilledSlotIndex(slots.Slice(tgtBase, barHeight)) + 1;
+
+            for (int i = 0; i < movedCount; i++)
+            {
+                slots[srcBase + srcTop - i] = EMPTY_INDEX_VALUE;
+                slots[tgtBase + tgtFirstFree + i] = color;
+            }
         }
     }
 }

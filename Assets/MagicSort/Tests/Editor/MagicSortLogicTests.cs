@@ -249,7 +249,7 @@ namespace ReplicaProjects.MagicSort.Tests
             var result = _logic.EvaluateAvailableBarPlacement(Input(flat), 0, 0);
 
             Assert.IsFalse(result.Success);
-            Assert.AreEqual(PlacementOutcome.SameBar, result.putcome);
+            Assert.AreEqual(PlacementOutcome.SameBar, result.outCome);
             Assert.AreEqual(0, result.movedCount);
         }
 
@@ -262,7 +262,7 @@ namespace ReplicaProjects.MagicSort.Tests
             var result = _logic.EvaluateAvailableBarPlacement(Input(flat), 0, 1);
 
             Assert.IsFalse(result.Success);
-            Assert.AreEqual(PlacementOutcome.TargetFull, result.putcome);
+            Assert.AreEqual(PlacementOutcome.TargetFull, result.outCome);
         }
 
         [Test]
@@ -274,7 +274,7 @@ namespace ReplicaProjects.MagicSort.Tests
             var result = _logic.EvaluateAvailableBarPlacement(Input(flat), 0, 1);
 
             Assert.IsFalse(result.Success);
-            Assert.AreEqual(PlacementOutcome.ColorMismatch, result.putcome);
+            Assert.AreEqual(PlacementOutcome.ColorMismatch, result.outCome);
         }
 
         [Test]
@@ -287,7 +287,7 @@ namespace ReplicaProjects.MagicSort.Tests
             var result = _logic.EvaluateAvailableBarPlacement(Input(flat), 0, 1);
 
             Assert.IsTrue(result.Success);
-            Assert.AreEqual(PlacementOutcome.Moved, result.putcome);
+            Assert.AreEqual(PlacementOutcome.Moved, result.outCome);
             Assert.AreEqual(2, result.movedCount);
             Assert.AreEqual(E, result.sourceNewTop); // source emptied
             Assert.AreEqual(0, result.targetNewTop);
@@ -335,6 +335,121 @@ namespace ReplicaProjects.MagicSort.Tests
             Assert.AreEqual(1, result.movedCount);
             Assert.AreEqual(E, result.sourceNewTop);
             Assert.AreEqual(5, result.targetNewTop);
+        }
+
+        // ── EvaluateTap ──
+
+        private const int NoSelection = -1;
+
+        [Test]
+        public void EvaluateTap_IgnoresTapOnEmptyBarWhenNothingSelected()
+        {
+            var flat = Board(new[] { E, E, E, E });
+            var result = _logic.EvaluateTap(Input(flat), NoSelection, 0);
+
+            Assert.AreEqual(TapKind.Ignored, result.Kind);
+            Assert.AreEqual(NoSelection, result.NewSource);
+        }
+
+        [Test]
+        public void EvaluateTap_SelectsSourceWhenTappingFilledBarWithNothingSelected()
+        {
+            var flat = Board(new[] { 0, E, E, E });
+            var result = _logic.EvaluateTap(Input(flat), NoSelection, 0);
+
+            Assert.AreEqual(TapKind.SourceSelected, result.Kind);
+            Assert.AreEqual(0, result.NewSource);
+        }
+
+        [Test]
+        public void EvaluateTap_DeselectsWhenTappingTheSelectedBarAgain()
+        {
+            var flat = Board(new[] { 0, E, E, E });
+            var result = _logic.EvaluateTap(Input(flat), currentSource: 0, tappedBar: 0);
+
+            Assert.AreEqual(TapKind.Deselected, result.Kind);
+            Assert.AreEqual(NoSelection, result.NewSource);
+            Assert.AreEqual(0, result.SourceBar);
+        }
+
+        [Test]
+        public void EvaluateTap_ConsumesWhenTappingAValidTarget()
+        {
+            var flat = Board(
+                new[] { 0, E, E, E },
+                new[] { E, E, E, E });
+            var result = _logic.EvaluateTap(Input(flat), currentSource: 0, tappedBar: 1);
+
+            Assert.AreEqual(TapKind.Consumed, result.Kind);
+            Assert.AreEqual(NoSelection, result.NewSource);
+            Assert.AreEqual(0, result.SourceBar);
+            Assert.AreEqual(1, result.TargetBar);
+            Assert.IsTrue(result.Pour.Success);
+            Assert.AreEqual(1, result.Pour.movedCount);
+        }
+
+        [Test]
+        public void EvaluateTap_RetargetsSelectionWhenTappingAnInvalidTarget()
+        {
+            // Selected bar 0 (a 0), tapped bar 1 is full -> selection moves to bar 1.
+            var flat = Board(
+                new[] { 0, E, E, E },
+                new[] { 1, 1, 1, 1 });
+            var result = _logic.EvaluateTap(Input(flat), currentSource: 0, tappedBar: 1);
+
+            Assert.AreEqual(TapKind.Retargeted, result.Kind);
+            Assert.AreEqual(1, result.NewSource);      // selection moved to the tapped bar
+            Assert.AreEqual(0, result.SourceBar);      // previous source
+            Assert.AreEqual(PlacementOutcome.TargetFull, result.RejectReason);
+        }
+
+        // ── ApplyPour ──
+
+        [Test]
+        public void ApplyPour_MovesWholeRunIntoEmptyTarget()
+        {
+            var flat = Board(
+                new[] { 0, 0, E, E },
+                new[] { E, E, E, E });
+
+            _logic.ApplyPour(flat, BarHeight, sourceBarIndex: 0, targetBarIndex: 1, movedCount: 2);
+
+            CollectionAssert.AreEqual(new[] { E, E, E, E }, BarSlice(flat, 0));
+            CollectionAssert.AreEqual(new[] { 0, 0, E, E }, BarSlice(flat, 1));
+        }
+
+        [Test]
+        public void ApplyPour_MovesPartialRunOntoMatchingColor()
+        {
+            var flat = Board(
+                new[] { 0, 0, 0, E },
+                new[] { 1, 0, E, E });
+
+            _logic.ApplyPour(flat, BarHeight, sourceBarIndex: 0, targetBarIndex: 1, movedCount: 2);
+
+            CollectionAssert.AreEqual(new[] { 0, E, E, E }, BarSlice(flat, 0));
+            CollectionAssert.AreEqual(new[] { 1, 0, 0, 0 }, BarSlice(flat, 1));
+        }
+
+        [Test]
+        public void ApplyPour_LeavesColorBelowTheMovedRunUntouched()
+        {
+            // Only the two 0's on top move; the 2 at the bottom of the source stays.
+            var flat = Board(
+                new[] { 2, 0, 0, E },
+                new[] { E, E, E, E });
+
+            _logic.ApplyPour(flat, BarHeight, sourceBarIndex: 0, targetBarIndex: 1, movedCount: 2);
+
+            CollectionAssert.AreEqual(new[] { 2, E, E, E }, BarSlice(flat, 0));
+            CollectionAssert.AreEqual(new[] { 0, 0, E, E }, BarSlice(flat, 1));
+        }
+
+        private static int[] BarSlice(int[] flat, int barIndex)
+        {
+            var bar = new int[BarHeight];
+            System.Array.Copy(flat, barIndex * BarHeight, bar, 0, BarHeight);
+            return bar;
         }
     }
 }
