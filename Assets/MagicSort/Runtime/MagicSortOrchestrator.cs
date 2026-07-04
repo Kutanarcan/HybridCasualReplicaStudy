@@ -1,4 +1,6 @@
 
+using UnityEngine;
+
 namespace ReplicaProjects.MagicSort
 {
     public struct MagisSortDataOfArrays
@@ -8,15 +10,19 @@ namespace ReplicaProjects.MagicSort
 
     public class MagicSortOrchestrator
     {
-        public MagisSortDataOfArrays magicSortData;
-        private readonly MagicSortLogic _magicSortLogic = new();
+        private MagisSortDataOfArrays magicSortData;
+        public readonly MagicSortLogic _magicSortLogic = new();
 
         private int _selectedBar = -1;
-        private int _barHeight;
+        public int _barHeight;
+        public int _barCount;
+        public int _colorCount;
 
         public void Initialize(MagicSortLevel level)
         {
             _barHeight = level.barHeight;
+            _colorCount = level.colorCount;
+            _barCount = level.barCount;
 
             magicSortData = new MagisSortDataOfArrays()
             {
@@ -27,21 +33,22 @@ namespace ReplicaProjects.MagicSort
             {
                 int barColorIndex = level.slots[i];
                 magicSortData.sequentialBarArray[i] = barColorIndex;
+                Debug.Log($"Slot Index: {i} -- Color Index: {barColorIndex}");
             }
         }
+        public SequentialBarArrayInput GetBoard() => new(magicSortData.sequentialBarArray, _barHeight);
 
         public void DeInitialize()
         {
 
         }
 
-
         public TapResult HandleTap(int barIndex)
         {
             var board = new SequentialBarArrayInput(magicSortData.sequentialBarArray, _barHeight);
-            
+
             var result = _magicSortLogic.EvaluateTap(board, _selectedBar, barIndex);
-            
+
             _selectedBar = result.NewSource;
 
             if (result.Kind == TapKind.Consumed)
