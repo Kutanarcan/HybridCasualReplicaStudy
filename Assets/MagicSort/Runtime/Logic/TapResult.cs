@@ -17,7 +17,7 @@ public readonly struct TapResult
     public readonly int TargetBar;                   // sadece Consumed'da anlamlı
     public readonly PlacementOutcome RejectReason;   // sadece Retargeted'da anlamlı
     public readonly AvailablePlacementResult Pour;   // sadece Consumed'da anlamlı
-
+    
     private TapResult(TapKind kind, int newSource, int sourceBar, int targetBar,
                       PlacementOutcome reason, AvailablePlacementResult pour)
     {

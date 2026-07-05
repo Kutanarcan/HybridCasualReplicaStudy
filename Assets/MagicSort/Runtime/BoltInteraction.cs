@@ -9,7 +9,7 @@ using UnityEngine.EventSystems;
 [RequireComponent(typeof(Collider))]
 public class BoltInteraction : MonoBehaviour, IPointerDownHandler
 {
-    public Action PointerDown;
+    public event Action PointerDown;
 
     public void OnPointerDown(PointerEventData eventData)
     {

@@ -28,6 +28,14 @@ namespace ReplicaProjects.MagicSort
         {
             _orchestrator.Initialize(_LevelList[0]);
             Build(_orchestrator.GetBoard());
+            _presentation.AnyBarViewClicked += OnAnyBarViewClicked;
+        }
+
+        private void OnAnyBarViewClicked(int barIndex)
+        {
+            TapResult result = _orchestrator.HandleTap(barIndex);
+
+            _presentation.HandleTapResponse(result);
         }
 
         public void Build(in SequentialBarArrayInput board)
@@ -48,8 +56,6 @@ namespace ReplicaProjects.MagicSort
 
                 barDataList.Add(data);
             }
-
-            Debug.Log($"Bar Data List Count {barDataList.Count}");
 
             _presentation.Initialize(barDataList);
         }
