@@ -60,6 +60,11 @@ namespace ReplicaProjects.MagicSort
             {
                 _magicSortLogic.ApplyPour(magicSortData.sequentialBarArray, _barHeight,
                                           result.SourceBar, result.TargetBar, result.Pour.movedCount);
+
+                var newBoard = GetBoard();
+                result = result.WithSolveInfo(
+                    _magicSortLogic.IsBarSolved(in newBoard, result.TargetBar),
+                    _magicSortLogic.IsAllBarsSolved(in newBoard));
             }
 
             return result;

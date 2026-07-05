@@ -1,4 +1,5 @@
-﻿using System;
+﻿using DG.Tweening;
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using UnityEngine;
@@ -21,7 +22,7 @@ namespace ReplicaProjects.MagicSort
         private const float Y_OFFSET = 4.0F;
         private const int MAX_COLUMNS = 3;
 
-        private const float CAMERA_Y_BASE = 12.0F;
+        private const float CAMERA_Y_BASE = 10.0F;
         private const float CAMERA_Y_PER_ROW = -3.0F;
         private const float CAMERA_SIZE_BASE = 3.5F;
         private const float CAMERA_SIZE_PER_ROW = 0.75F;
@@ -117,14 +118,70 @@ namespace ReplicaProjects.MagicSort
 
         public void HandleTapResponse(TapResult result)
         {
-            Debug.Log($"Tap Kind: {result.Kind}");
+            //Debug.Log($"Tap Kind: {result.Kind} \n" +
+            //    $"-> Source Bar Index {result.SourceBar}" +
+            //    $"-> New Source Bar Index {result.NewSource}" +
+            //    $"-> Target Bar Index {result.TargetBar}" +
+            //    $"");
 
-            if (result.Kind != TapKind.Consumed)
+            switch (result.Kind)
+            {
+                case TapKind.Ignored:
+                    break;
+                case TapKind.SourceSelected:
+                    SourceSelectedState(result);
+                    break;
+                case TapKind.Deselected:
+                    SourceDeSelectedState(result);
+                    break;
+                case TapKind.Retargeted:
+                    ReTargettedState(result);
+                    break;
+                case TapKind.Consumed:
+                    ConsumeState(result);
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        private void ReTargettedState(TapResult result)
+        {
+            if (!_magicSortBarViewList[result.SourceBar].TryPeekNut(out var nutSource))
                 return;
 
+            _magicSortBarViewList[result.SourceBar].MoveNutDeSelectedAnimation(nutSource);
+
+            if (!_magicSortBarViewList[result.NewSource].TryPeekNut(out var nutTarget))
+                return;
+
+            _magicSortBarViewList[result.NewSource].MoveNutSelectedAnimation(nutTarget);
+        }
+
+
+        private void SourceDeSelectedState(TapResult result)
+        {
+            if (!_magicSortBarViewList[result.SourceBar].TryPeekNut(out var nut))
+                return;
+
+            _magicSortBarViewList[result.SourceBar].MoveNutDeSelectedAnimation(nut);
+        }
+
+        private void SourceSelectedState(TapResult result)
+        {
+            if (!_magicSortBarViewList[result.SourceBar].TryPeekNut(out var nut))
+                return;
+
+            _magicSortBarViewList[result.SourceBar].MoveNutSelectedAnimation(nut);
+        }
+
+        private void ConsumeState(TapResult result)
+        {
             for (int i = 0; i < result.Pour.movedCount; i++)
             {
-                if (!_magicSortBarViewList[result.SourceBar].TryPopNut(out var nut))
+                var sourceBar = _magicSortBarViewList[result.SourceBar];
+
+                if (!sourceBar.TryPopNut(out var nut))
                     continue;
 
                 var targetBar = _magicSortBarViewList[result.TargetBar];
@@ -134,6 +191,11 @@ namespace ReplicaProjects.MagicSort
 
                 nut.transform.SetParent(null);
                 targetBar.PushNut(nut);
+                var sequence = targetBar.MoveBarSlotAnimation(nut, sourceBar.topPositionHolder.position, 0.25f * i);
+
+                bool isLastNut = i == result.Pour.movedCount - 1;
+                if (isLastNut && result.TargetBarSolved)
+                    sequence.OnComplete(targetBar.PlayCapSolvedAnimation);
             }
         }
     }

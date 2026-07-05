@@ -79,7 +79,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!4 &4074439188809535457
 Transform:
   m_ObjectHideFlags: 0
@@ -412,5 +412,6 @@ MonoBehaviour:
   _NutPrefab: {fileID: 4550658439133935838, guid: f16ac6bab4d7ff34f96d613883b927ff, type: 3}
   _NutHolder: {fileID: 9179207917088002269}
   _CapEndPositionHolder: {fileID: 853116510389830599}
-  _TopPositionHolder: {fileID: 7650305205542993460}
+  _Cap: {fileID: 3729121736853820763}
+  topPositionHolder: {fileID: 7650305205542993460}
   _BoltInteraction: {fileID: 3793118465356335397}
