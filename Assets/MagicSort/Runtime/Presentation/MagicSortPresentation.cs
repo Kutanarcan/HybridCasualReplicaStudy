@@ -14,7 +14,6 @@ namespace ReplicaProjects.MagicSort
     public class MagicSortPresentation : MonoBehaviour
     {
         public event Action<int> AnyBarViewClicked;
-        public event Action BarAnimationFinished;
 
         [SerializeField] private MagicSortBarView _MagicSortBarViewPrefab;
         [SerializeField] private List<Color> _colorPalette;
@@ -222,15 +221,9 @@ namespace ReplicaProjects.MagicSort
 
                 bool isLastNut = i == result.Pour.movedCount - 1;
                 if (isLastNut && result.TargetBarSolved)
-                    sequence.Append(targetBar.PlayCapSolvedAnimation()
-                        .OnComplete(OnBarAnimationFinished))
+                    sequence.Append(targetBar.PlayCapSolvedAnimation())
                         .SetLink(targetBar.gameObject);
             }
-        }
-
-        private void OnBarAnimationFinished()
-        {
-            BarAnimationFinished?.Invoke();
         }
     }
 }

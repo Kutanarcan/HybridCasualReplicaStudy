@@ -9,6 +9,10 @@ namespace ReplicaProjects.MagicSort
     {
         public event Action<int> Clicked;
 
+        [SerializeField] private AudioClip _Up;
+        [SerializeField] private AudioClip _Down;
+        [SerializeField] private AudioSource _AudioSource;
+
         [SerializeField] private GameObject _NutPrefab;
         [SerializeField] private Transform _NutHolder;
 
@@ -92,7 +96,11 @@ namespace ReplicaProjects.MagicSort
                 .SetDelay(delay)
                 .Append(nut.transform.DOLocalMove(sourceLocalTarget, topMovementDelay).SetEase(Ease.Linear))
                 .Join(nut.transform.DORotate(new Vector3(0, -360 * rotationDelayApply, 0), 0.25f * rotationDelayApply, RotateMode.FastBeyond360))
-                .Append(nut.transform.DOLocalMove(localTarget, 0.25f).SetEase(Ease.Linear))
+                .Append(nut.transform.DOLocalMove(localTarget, 0.25f).SetEase(Ease.Linear)
+                    .OnComplete(() =>
+                    {
+                        _AudioSource.PlayOneShot(_Down);
+                    }))
                 .Append(nut.transform.DOLocalMove(nutSlotPosition, 0.35f).SetEase(Ease.Linear))
                 .Join(nut.transform.DORotate(new Vector3(0, 360, 0), 0.35f, RotateMode.FastBeyond360))
                 .SetId(nut)
@@ -106,11 +114,11 @@ namespace ReplicaProjects.MagicSort
             DOTween.Kill(_Cap);
 
             return DOTween.Sequence()
-                           .Append(_Cap.transform.DOJump(_CapEndPositionHolder.position, 1f, 1, 0.4f).SetEase(Ease.Linear))
-                           .Join(_Cap.transform.DOLocalRotate(new Vector3(90, 0, 0), 0.25f, RotateMode.FastBeyond360))
-                           .Append(_Cap.transform.DOPunchScale(Vector3.one * 0.15f, 0.2f, 1))
-                           .SetId(_Cap)
-                           .SetLink(_Cap, LinkBehaviour.KillOnDisable);
+                .Append(_Cap.transform.DOJump(_CapEndPositionHolder.position, 1f, 1, 0.4f).SetEase(Ease.Linear))
+                .Join(_Cap.transform.DOLocalRotate(new Vector3(90, 0, 0), 0.25f, RotateMode.FastBeyond360))
+                .Append(_Cap.transform.DOPunchScale(Vector3.one * 0.15f, 0.2f, 1))
+                .SetId(_Cap)
+                .SetLink(_Cap, LinkBehaviour.KillOnDisable);
         }
 
         public void MoveNutDeSelectedAnimation(GameObject nut)
@@ -119,6 +127,8 @@ namespace ReplicaProjects.MagicSort
 
             var pos = new Vector3(0f, (_nutStack.Count - 1) * NUT_SPACING, 0f);
             nut.transform.eulerAngles = Vector3.zero;
+
+            _AudioSource.PlayOneShot(_Down);
 
             DOTween.Sequence()
                 .Append(nut.transform.DOLocalMove(pos, 0.5f).SetEase(Ease.Linear))
@@ -132,6 +142,7 @@ namespace ReplicaProjects.MagicSort
             DOTween.Kill(nut);
 
             var localTarget = nut.transform.parent.InverseTransformPoint(topPositionHolder.position);
+            _AudioSource.PlayOneShot(_Up);
 
             var sequence = DOTween.Sequence()
                 .Append(nut.transform.DOLocalMove(localTarget, 0.5f).SetEase(Ease.Linear))

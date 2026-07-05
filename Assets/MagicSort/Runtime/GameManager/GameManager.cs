@@ -20,6 +20,7 @@ namespace ReplicaProjects.MagicSort
 
         private void Awake()
         {
+            Application.targetFrameRate = 60;
             Create();
             Initialize();
         }
@@ -65,23 +66,24 @@ namespace ReplicaProjects.MagicSort
 
             _endScreenPresentation.InteractionButtonPressed += OnEndGameButtonPressed;
             _inGameUI.InteractionButtonPressed += OnRestartLevelButtonClicked;
-            _presentation.BarAnimationFinished += BarAnimationFinished;
         }
 
-        private void BarAnimationFinished()
+        private void TryToCallEndGame()
         {
             if (!_isSolvedLevel)
                 return;
 
-            _inGameUI.Hide();
-            _endScreenPresentation.SetState(true);
+            DOVirtual.DelayedCall(1.5f, () =>
+            {
+                _inGameUI.Hide();
+                _endScreenPresentation.SetState(true);
+            });
         }
 
         private void ReloadLevel(int index)
         {
             _endScreenPresentation.InteractionButtonPressed -= OnEndGameButtonPressed;
             _inGameUI.InteractionButtonPressed -= OnRestartLevelButtonClicked;
-            _presentation.BarAnimationFinished -= BarAnimationFinished;
 
             _presentation.DeInitialize();
             LoadLevel(index);
@@ -94,6 +96,8 @@ namespace ReplicaProjects.MagicSort
             _isSolvedLevel = result.LevelSolved;
 
             _presentation.HandleTapResponse(result);
+
+            TryToCallEndGame();
         }
 
         public void Build(in SequentialBarArrayInput board)
