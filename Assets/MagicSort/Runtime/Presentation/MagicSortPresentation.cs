@@ -32,6 +32,7 @@ namespace ReplicaProjects.MagicSort
         private static MaterialPropertyBlock _mpb;
 
         private List<MagicSortBarView> _magicSortBarViewList;
+        private GameObject _barsRoot;
 
         public void Initialize(List<BarVisualData> bars)
         {
@@ -51,12 +52,16 @@ namespace ReplicaProjects.MagicSort
                 view.Clicked -= OnAnyBarViewClicked;
                 view.DeInitialize();
             }
+
+            Destroy(_barsRoot); // SetLink(KillOnDisable) sayesinde çalışan tween'ler de ölür
+            _barsRoot = null;
+            _magicSortBarViewList = null;
         }
 
         private void CreateItems(List<BarVisualData> bars)
         {
-            GameObject barsRoot = new GameObject("BarsRoot");
-            barsRoot.transform.SetParent(transform, false);
+            _barsRoot = new GameObject("BarsRoot");
+            _barsRoot.transform.SetParent(transform, false);
 
             _magicSortBarViewList = new List<MagicSortBarView>(bars.Count);
 
@@ -65,7 +70,7 @@ namespace ReplicaProjects.MagicSort
                 int col = i % MAX_COLUMNS;
                 int row = i / MAX_COLUMNS;
 
-                MagicSortBarView barView = Instantiate(_MagicSortBarViewPrefab, barsRoot.transform);
+                MagicSortBarView barView = Instantiate(_MagicSortBarViewPrefab, _barsRoot.transform);
                 barView.transform.localPosition = new Vector3(col * Offset.x, -row * Offset.y, -row * Offset.z);
 
                 barView.Initialize(ResolveColors(bars[i].colorList), i);

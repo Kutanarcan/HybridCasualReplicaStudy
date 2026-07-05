@@ -20,6 +20,7 @@ namespace ReplicaProjects.MagicSort
 
         public void Initialize(MagicSortLevel level)
         {
+            _selectedBar = -1;
             _barHeight = level.barHeight;
             _colorCount = level.colorCount;
             _barCount = level.barCount;

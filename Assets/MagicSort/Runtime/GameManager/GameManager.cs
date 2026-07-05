@@ -10,10 +10,21 @@ namespace ReplicaProjects.MagicSort
         private MagicSortPresentation _presentation;
         private readonly MagicSortOrchestrator _orchestrator = new();
 
+        private int _currentLevelIndex;
+
         private void Awake()
         {
             Create();
             Initialize();
+        }
+
+        private void Update()
+        {
+            if (Input.GetKeyDown(KeyCode.Space))
+                ReloadLevel(_currentLevelIndex);
+
+            if (Input.GetKeyDown(KeyCode.N))
+                ReloadLevel((_currentLevelIndex + 1) % _LevelList.Count);
         }
 
         private void Create()
@@ -25,9 +36,21 @@ namespace ReplicaProjects.MagicSort
 
         private void Initialize()
         {
-            _orchestrator.Initialize(_LevelList[0]);
-            Build(_orchestrator.GetBoard());
             _presentation.AnyBarViewClicked += OnAnyBarViewClicked;
+            LoadLevel(_currentLevelIndex);
+        }
+
+        private void LoadLevel(int index)
+        {
+            _currentLevelIndex = index;
+            _orchestrator.Initialize(_LevelList[index]);
+            Build(_orchestrator.GetBoard());
+        }
+
+        private void ReloadLevel(int index)
+        {
+            _presentation.DeInitialize();
+            LoadLevel(index);
         }
 
         private void OnAnyBarViewClicked(int barIndex)
