@@ -1,6 +1,8 @@
 {
     "name": "ReplicaProjects.Arrows",
-    "references": [],
+    "references": [
+        "ReplicaProjects.Common"
+    ],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,

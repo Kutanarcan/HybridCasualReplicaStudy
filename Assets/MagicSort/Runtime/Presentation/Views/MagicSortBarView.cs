@@ -11,7 +11,7 @@ namespace ReplicaProjects.MagicSort
 
         [SerializeField] private GameObject _NutPrefab;
         [SerializeField] private Transform _NutHolder;
-        
+
         [SerializeField] private Transform _CapEndPositionHolder;
         [SerializeField] private GameObject _Cap;
 
@@ -101,16 +101,16 @@ namespace ReplicaProjects.MagicSort
             return sequence;
         }
 
-        public void PlayCapSolvedAnimation()
+        public Sequence PlayCapSolvedAnimation()
         {
             DOTween.Kill(_Cap);
 
-            DOTween.Sequence()
-                .Append(_Cap.transform.DOJump(_CapEndPositionHolder.position, 1f, 1, 0.4f).SetEase(Ease.Linear))
-                .Join(_Cap.transform.DOLocalRotate(new Vector3(90, 0, 0), 0.25f, RotateMode.FastBeyond360))
-                .Append(_Cap.transform.DOPunchScale(Vector3.one * 0.15f, 0.2f, 1))
-                .SetId(_Cap)
-                .SetLink(_Cap, LinkBehaviour.KillOnDisable);
+            return DOTween.Sequence()
+                           .Append(_Cap.transform.DOJump(_CapEndPositionHolder.position, 1f, 1, 0.4f).SetEase(Ease.Linear))
+                           .Join(_Cap.transform.DOLocalRotate(new Vector3(90, 0, 0), 0.25f, RotateMode.FastBeyond360))
+                           .Append(_Cap.transform.DOPunchScale(Vector3.one * 0.15f, 0.2f, 1))
+                           .SetId(_Cap)
+                           .SetLink(_Cap, LinkBehaviour.KillOnDisable);
         }
 
         public void MoveNutDeSelectedAnimation(GameObject nut)

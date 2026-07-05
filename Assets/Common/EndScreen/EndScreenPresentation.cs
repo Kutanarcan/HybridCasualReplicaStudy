@@ -1,7 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace ReplicaProjects.Arrows
+namespace ReplicaProjects.Common
 {
     public class EndScreenPresentation : MonoBehaviour
     {
@@ -28,6 +28,9 @@ namespace ReplicaProjects.Arrows
         {
             _InteractionButton.onClick.RemoveAllListeners();
         }
+
+        public void Show() => _Canvas.enabled = true;
+        public void Hide() => _Canvas.enabled = false;
 
         public void SetState(bool isVictory)
         {

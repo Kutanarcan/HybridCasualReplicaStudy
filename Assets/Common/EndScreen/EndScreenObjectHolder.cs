@@ -1,7 +1,7 @@
 ﻿using UnityEngine;
 using UnityEngine.UI;
 
-namespace ReplicaProjects.Arrows
+namespace ReplicaProjects.Common
 {
     [System.Serializable]
     public class EndScreenObjectHolder
