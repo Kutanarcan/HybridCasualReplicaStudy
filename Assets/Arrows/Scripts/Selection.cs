@@ -5,7 +5,7 @@ namespace ReplicaProjects.Arrows
 {
     public class Selection : MonoBehaviour
     {
-        [SerializeField] private float _nodeHitDiameter = 1f;
+        [SerializeField] private float _nodeHitDiameter = 1.1f;
         [SerializeField] private float _dragThreshold = 10f; // pixels
 
         private Camera _camera;

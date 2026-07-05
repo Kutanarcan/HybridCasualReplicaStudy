@@ -5,7 +5,7 @@ namespace ReplicaProjects.Arrows
 {
     public class GameManager : MonoBehaviour
     {
-        [SerializeField] private LevelData _level;
+        [SerializeField] private List<LevelData> _levelDataList;
 
         private int width, height;
 
@@ -24,8 +24,13 @@ namespace ReplicaProjects.Arrows
         private const int MAX_HEALTH = 3;
         private bool isFinished = false;
 
+        private int _currentLevel = 0;
+        private LevelData _level;
+
         private void Awake()
         {
+            Application.targetFrameRate = 60;
+
             Create();
             Initialize();
             InitializePresentation();
@@ -51,6 +56,8 @@ namespace ReplicaProjects.Arrows
 
         private void Initialize()
         {
+            _level = _levelDataList[_currentLevel];
+
             width = _level.width;
             height = _level.height;
 
@@ -63,9 +70,7 @@ namespace ReplicaProjects.Arrows
             _endScreenPresentation.InteractionButtonPressed += OnEndGameButtonPressed;
 
             _selection.OnNodeSelected += OnNodeSelected;
-
         }
-
 
         private void DeInitialize()
         {
@@ -100,6 +105,7 @@ namespace ReplicaProjects.Arrows
         private void OnFinishedWithVictory()
         {
             isFinished = true;
+            _currentLevel = (_currentLevel + 1) % _levelDataList.Count;
         }
 
         private void OnAnyArrowHeadAnimationFinished()

@@ -7,6 +7,7 @@ namespace ReplicaProjects.Arrows
     {
         [SerializeField] private float _minOrthographicSize = 2f;
         [SerializeField] private float _zoomSpeed = 0.5f;
+        [SerializeField] private float _pinchZoomSpeed = 0.01f;
         [SerializeField] private float _boundsPaddingX = 0.5f;
         [SerializeField] private float _boundsPaddingY = 2.5f;
         [SerializeField] private float _shakeStrength = 0.35f;
@@ -16,6 +17,7 @@ namespace ReplicaProjects.Arrows
         private Bounds _boardBounds;
         private float _maxOrthographicSize; // = fit size = max zoom-out
         private Vector3 _lastMousePosition;
+        private float _lastPinchDistance;
 
         // Shake is layered on top of the clamped position each frame, so ClampToBounds (which can snap
         // back to centre) never cancels it.
@@ -34,8 +36,7 @@ namespace ReplicaProjects.Arrows
             // Let the view drift a little past the edges so corner/edge cells are easier to reach.
             _boardBounds.Expand(new Vector3(_boundsPaddingX * 2f, _boundsPaddingY * 2f, 0f));
 
-            // Preserve the existing fit formula as the max zoom-out.
-            _maxOrthographicSize = width <= height ? (width + height) * 0.5f : width;
+            _maxOrthographicSize = ComputeFitSize();
 
             ResetView();
         }
@@ -68,9 +69,26 @@ namespace ReplicaProjects.Arrows
                 .SetLink(gameObject);
         }
 
+        // Smallest orthographic size that keeps the whole (padded) board on screen for the
+        // current aspect. orthographicSize is a half-height, so the width constraint has to be
+        // divided by aspect — on a tall phone (aspect < 1) that's what drives the zoom-out.
+        private float ComputeFitSize()
+        {
+            var aspect = _camera.aspect;
+            if (aspect <= 0f)
+                aspect = (float)Screen.width / Screen.height;
+
+            var halfForHeight = _boardBounds.extents.y;
+            var halfForWidth = _boardBounds.extents.x / aspect;
+
+            return Mathf.Max(halfForHeight, halfForWidth);
+        }
+
         // Frame the whole board (fully zoomed out, centered).
         private void ResetView()
         {
+            // Recompute in case the aspect changed since Initialize (e.g. orientation change).
+            _maxOrthographicSize = ComputeFitSize();
             _camera.orthographicSize = _maxOrthographicSize;
 
             var z = _camera.transform.position.z;
@@ -85,8 +103,18 @@ namespace ReplicaProjects.Arrows
             // Strip last frame's shake so pan/zoom/clamp operate on the clean base position.
             _camera.transform.position -= _shakeOffsetApplied;
 
-            HandleZoom();
-            HandlePan();
+            // Two fingers down => pinch zoom; suppress pan so the camera doesn't jump
+            // as the mouse-emulated touch tracks the average finger position.
+            if (Input.touchCount >= 2)
+            {
+                HandlePinchZoom();
+            }
+            else
+            {
+                HandleZoom();
+                HandlePan();
+            }
+
             ClampToBounds();
 
             // Layer the current shake back on top of the controlled position.
@@ -102,6 +130,36 @@ namespace ReplicaProjects.Arrows
 
             _camera.orthographicSize = Mathf.Clamp(
                 _camera.orthographicSize - scroll * _zoomSpeed,
+                _minOrthographicSize,
+                _maxOrthographicSize);
+        }
+
+        private void HandlePinchZoom()
+        {
+            var t0 = Input.GetTouch(0);
+            var t1 = Input.GetTouch(1);
+
+            var distance = Vector2.Distance(t0.position, t1.position);
+
+            // Start of a pinch: seed the reference distance without zooming this frame.
+            if (t0.phase == TouchPhase.Began || t1.phase == TouchPhase.Began)
+            {
+                _lastPinchDistance = distance;
+                return;
+            }
+
+            var delta = distance - _lastPinchDistance;
+            _lastPinchDistance = distance;
+
+            // Keep the pan anchor current so lifting one finger back into a single-finger
+            // drag doesn't snap the camera on the transition frame.
+            _lastMousePosition = Input.mousePosition;
+
+            if (Mathf.Approximately(delta, 0f))
+                return;
+
+            _camera.orthographicSize = Mathf.Clamp(
+                _camera.orthographicSize - delta * _pinchZoomSpeed,
                 _minOrthographicSize,
                 _maxOrthographicSize);
         }
