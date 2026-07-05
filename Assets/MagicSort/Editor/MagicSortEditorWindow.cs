@@ -60,10 +60,10 @@ public class MagicSortEditorWindow : EditorWindow
     private const int BarSpacing = 16;
     private const int BarHeight = 4;
 
-    [MenuItem("Tools/Magic Sort Replica Level Designer")]
+    [MenuItem("Tools/Level Design/Magic Sort Level Editor")]
     public static void ShowWindow()
     {
-        var w = GetWindow<MagicSortEditorWindow>("Magic Sort Replica Level Designer");
+        var w = GetWindow<MagicSortEditorWindow>("Magic Sort Replica Level Editor");
         w.minSize = new Vector2(500, 520);
     }
 

@@ -33,11 +33,11 @@ namespace ReplicaProjects.Arrows.EditorTools
         private readonly BoardLogic _boardLogic = new();
         private HashSet<Vector2Int> _violationCoords = new();
 
-        [MenuItem("Window/Arrows/Level Editor")]
+        [MenuItem("Tools/Level Design/Arrows Level Editor")]
         public static void Open()
         {
             var window = GetWindow<LevelEditorWindow>();
-            window.titleContent = new GUIContent("Level Editor");
+            window.titleContent = new GUIContent("Arrows Replica Level Editor");
             window.minSize = new Vector2(520f, 420f);
             window.Show();
         }
