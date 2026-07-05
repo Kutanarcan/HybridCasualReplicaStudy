@@ -19,15 +19,15 @@ namespace ReplicaProjects.MagicSort
         [SerializeField] private List<Color> _colorPalette;
 
         private const float X_OFFSET = 1.75F;
-        private const float Y_OFFSET = 4.0F;
+        private const float ROW_Y_OFFSET = 3.0F;   // ekran aralığı: satır başına ekstra düşüş
+        private const float ROW_Z_OFFSET = 2.0F;   // derinlik: ön satırlar arkadakileri örter
         private const int MAX_COLUMNS = 3;
 
-        private const float CAMERA_Y_BASE = 10.0F;
-        private const float CAMERA_Y_PER_ROW = -3.0F;
-        private const float CAMERA_SIZE_BASE = 3.5F;
-        private const float CAMERA_SIZE_PER_ROW = 0.75F;
+        private const float BAR_VISUAL_HEIGHT = 2.5F; // somun yığını + kapak için üst pay
+        private const float CAMERA_PAD_X = 1.0F;
+        private const float CAMERA_PAD_Y = 0.75F;
 
-        public readonly Vector2 Offset = new Vector2(X_OFFSET, Y_OFFSET);
+        public readonly Vector3 Offset = new Vector3(X_OFFSET, ROW_Y_OFFSET, ROW_Z_OFFSET);
 
         private static MaterialPropertyBlock _mpb;
 
@@ -66,7 +66,7 @@ namespace ReplicaProjects.MagicSort
                 int row = i / MAX_COLUMNS;
 
                 MagicSortBarView barView = Instantiate(_MagicSortBarViewPrefab, barsRoot.transform);
-                barView.transform.localPosition = new Vector3(col * Offset.x, -row * Offset.y, 0f);
+                barView.transform.localPosition = new Vector3(col * Offset.x, -row * Offset.y, -row * Offset.z);
 
                 barView.Initialize(ResolveColors(bars[i].colorList), i);
 
@@ -103,17 +103,38 @@ namespace ReplicaProjects.MagicSort
             if (cam == null)
                 return;
 
-            int columns = Mathf.Min(barCount, MAX_COLUMNS);
-            int rows = Mathf.CeilToInt(barCount / (float)MAX_COLUMNS);
+            Transform camT = cam.transform;
 
-            float boardWidth = (columns - 1) * Offset.x;
+            // Bar taban ve tepe noktalarını kamera uzayına yansıt, board'un ekran sınırlarını bul
+            float minX = float.MaxValue, maxX = float.MinValue;
+            float minY = float.MaxValue, maxY = float.MinValue;
 
-            Vector3 pos = cam.transform.position;
-            pos.x = boardWidth / 2f;
-            pos.y = CAMERA_Y_BASE + CAMERA_Y_PER_ROW * rows;
-            cam.transform.position = pos;
+            for (int i = 0; i < barCount; i++)
+            {
+                int col = i % MAX_COLUMNS;
+                int row = i / MAX_COLUMNS;
 
-            cam.orthographicSize = CAMERA_SIZE_BASE + CAMERA_SIZE_PER_ROW * rows;
+                Vector3 barBase = transform.TransformPoint(new Vector3(col * Offset.x, -row * Offset.y, -row * Offset.z));
+                Vector3 barTop = barBase + Vector3.up * BAR_VISUAL_HEIGHT;
+
+                Vector3 lp = camT.InverseTransformPoint(barBase);
+                minX = Mathf.Min(minX, lp.x); maxX = Mathf.Max(maxX, lp.x);
+                minY = Mathf.Min(minY, lp.y); maxY = Mathf.Max(maxY, lp.y);
+
+                lp = camT.InverseTransformPoint(barTop);
+                minX = Mathf.Min(minX, lp.x); maxX = Mathf.Max(maxX, lp.x);
+                minY = Mathf.Min(minY, lp.y); maxY = Mathf.Max(maxY, lp.y);
+            }
+
+            // Kamerayı kendi sağ/yukarı eksenlerinde kaydırarak board'u ortala
+            float centerX = (minX + maxX) * 0.5f;
+            float centerY = (minY + maxY) * 0.5f;
+            camT.position += camT.right * centerX + camT.up * centerY;
+
+            float halfHeight = (maxY - minY) * 0.5f + CAMERA_PAD_Y;
+            float halfWidth = (maxX - minX) * 0.5f + CAMERA_PAD_X;
+
+            cam.orthographicSize = Mathf.Max(halfHeight, halfWidth / cam.aspect);
         }
 
         public void HandleTapResponse(TapResult result)
