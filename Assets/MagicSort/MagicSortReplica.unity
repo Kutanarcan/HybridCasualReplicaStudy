@@ -440,9 +440,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   _LevelList:
+  - {fileID: 11400000, guid: d2c874539fe5199429f22f7227f2b54c, type: 2}
   - {fileID: 11400000, guid: a9596c1ed56343f43ad73f70711b12ba, type: 2}
   - {fileID: 11400000, guid: a508514c9ac23e344ab04a8a962a5e1f, type: 2}
-  - {fileID: 11400000, guid: d2c874539fe5199429f22f7227f2b54c, type: 2}
 --- !u!4 &2083413125
 Transform:
   m_ObjectHideFlags: 0

@@ -33,11 +33,30 @@ namespace ReplicaProjects.MagicSort
 
         private List<MagicSortBarView> _magicSortBarViewList;
         private GameObject _barsRoot;
+        private bool _inputLocked;
 
         public void Initialize(List<BarVisualData> bars)
         {
             CreateItems(bars);
             FitCamera(bars.Count);
+            PlayIntroAnimations();
+        }
+
+        private void PlayIntroAnimations()
+        {
+            _inputLocked = true;
+
+            int remaining = _magicSortBarViewList.Count;
+
+            foreach (var view in _magicSortBarViewList)
+            {
+                view.PlayIntroAnimation().OnComplete(() =>
+                {
+                    remaining--;
+                    if (remaining == 0)
+                        _inputLocked = false;
+                });
+            }
         }
 
         public void DeInitialize()
@@ -83,6 +102,9 @@ namespace ReplicaProjects.MagicSort
 
         private void OnAnyBarViewClicked(int index)
         {
+            if (_inputLocked)
+                return;
+
             AnyBarViewClicked?.Invoke(index);
         }
 

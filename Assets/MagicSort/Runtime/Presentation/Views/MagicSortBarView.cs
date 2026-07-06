@@ -25,9 +25,17 @@ namespace ReplicaProjects.MagicSort
         private const float NUT_SPACING = 0.5f;
         private const string COLOR_PROPERTY = "_Color";
 
+        private const float INTRO_START_Z = 1f;          // belirme noktası: barın arkası (local z)
+        private const float INTRO_STAGGER = 0.4f;        // somunlar arası belirme gecikmesi
+        private const float INTRO_TOP_MOVE_DURATION = 0.25f;
+        private const float DESELECT_MOVE_DURATION = 0.5f;
+        private const float DESELECT_ROTATE_DURATION = 0.65f;
+
         private static MaterialPropertyBlock _mpb;
+        private static int _lastIntroSfxFrame = -1; // aynı frame'de tüm barlar drop başlatınca sesi tek sefer çal
 
         private Stack<GameObject> _nutStack;
+        private Vector3 _nutBaseScale = Vector3.one;
         private int _index;
 
         public void Initialize(List<Color> colors, int index)
@@ -39,7 +47,12 @@ namespace ReplicaProjects.MagicSort
             for (int i = 0; i < colors.Count; i++)
             {
                 GameObject nut = Instantiate(_NutPrefab, _NutHolder);
-                nut.transform.localPosition = new Vector3(0f, i * NUT_SPACING, 0f);
+                _nutBaseScale = nut.transform.localScale;
+
+                // Intro: topPositionHolder yüksekliğinde, barın arkasında (z=1), görünmez (scale 0) başla
+                var topLocal = _NutHolder.InverseTransformPoint(topPositionHolder.position);
+                nut.transform.localPosition = new Vector3(0f, topLocal.y, INTRO_START_Z);
+                nut.transform.localScale = Vector3.zero;
 
                 var meshRenderer = nut.GetComponentInChildren<MeshRenderer>();
                 meshRenderer.GetPropertyBlock(_mpb);
@@ -50,6 +63,52 @@ namespace ReplicaProjects.MagicSort
             }
 
             _BoltInteraction.PointerDown += BoltInteraction_PointerDown;
+        }
+
+        public Sequence PlayIntroAnimation()
+        {
+            var sequence = DOTween.Sequence();
+
+            var topLocal = _NutHolder.InverseTransformPoint(topPositionHolder.position);
+
+            int slot = _nutStack.Count - 1; // stack üstten alta doğru enumerate eder
+            foreach (var nut in _nutStack)
+            {
+                GameObject introNut = nut;
+
+                // Alttaki somun önce belirsin: slot 0 → gecikme 0
+                float appearTime = slot * INTRO_STAGGER;
+                float dropTime = appearTime + INTRO_TOP_MOVE_DURATION;
+
+                var slotPosition = new Vector3(0f, slot * NUT_SPACING, 0f);
+
+                // Beliriş: anında görünür ol
+                sequence.InsertCallback(appearTime, () => introNut.transform.localScale = _nutBaseScale);
+
+                // Önce topPositionHolder'a git
+                sequence.Insert(appearTime,
+                    introNut.transform.DOLocalMove(topLocal, INTRO_TOP_MOVE_DURATION).SetEase(Ease.Linear));
+
+                // Sonra DeSelect animasyonu: slota inerken 360 dön
+                sequence.InsertCallback(dropTime, PlayIntroDropSfx);
+                sequence.Insert(dropTime,
+                    introNut.transform.DOLocalMove(slotPosition, DESELECT_MOVE_DURATION).SetEase(Ease.Linear));
+                sequence.Insert(dropTime,
+                    introNut.transform.DORotate(new Vector3(0, 360, 0), DESELECT_ROTATE_DURATION, RotateMode.FastBeyond360));
+
+                slot--;
+            }
+
+            return sequence.SetLink(gameObject, LinkBehaviour.KillOnDisable);
+        }
+
+        private void PlayIntroDropSfx()
+        {
+            if (Time.frameCount == _lastIntroSfxFrame)
+                return;
+
+            _lastIntroSfxFrame = Time.frameCount;
+            _AudioSource.PlayOneShot(_Down);
         }
 
         private void BoltInteraction_PointerDown()
@@ -131,8 +190,8 @@ namespace ReplicaProjects.MagicSort
             _AudioSource.PlayOneShot(_Down);
 
             DOTween.Sequence()
-                .Append(nut.transform.DOLocalMove(pos, 0.5f).SetEase(Ease.Linear))
-                .Join(nut.transform.DORotate(new Vector3(0, 360, 0), 0.65f, RotateMode.FastBeyond360))
+                .Append(nut.transform.DOLocalMove(pos, DESELECT_MOVE_DURATION).SetEase(Ease.Linear))
+                .Join(nut.transform.DORotate(new Vector3(0, 360, 0), DESELECT_ROTATE_DURATION, RotateMode.FastBeyond360))
                 .SetId(nut)
                 .SetLink(nut, LinkBehaviour.KillOnDisable);
         }
