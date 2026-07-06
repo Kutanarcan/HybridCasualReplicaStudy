@@ -1,14 +1,12 @@
 using DG.Tweening;
-using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace ReplicaProjects.MagicSort
 {
-    public class MagicSortBarView : MonoBehaviour
+    public class BoltBarView : MagicSortBarViewBase
     {
-        public event Action<int> Clicked;
-
         [SerializeField] private AudioClip _Up;
         [SerializeField] private AudioClip _Down;
         [SerializeField] private AudioClip _CapWin;
@@ -21,8 +19,11 @@ namespace ReplicaProjects.MagicSort
         [SerializeField] private Transform _CapEndPositionHolder;
         [SerializeField] private GameObject _Cap;
 
-        [SerializeField] public Transform topPositionHolder;
+        [FormerlySerializedAs("topPositionHolder")]
+        [SerializeField] private Transform _TopPositionHolder;
         [SerializeField] private BoltInteraction _BoltInteraction;
+
+        public override Transform TopPositionHolder => _TopPositionHolder;
 
         private const float NUT_SPACING = 0.5f;
         private const string COLOR_PROPERTY = "_Color";
@@ -36,45 +37,49 @@ namespace ReplicaProjects.MagicSort
         private static MaterialPropertyBlock _mpb;
         private static int _lastIntroSfxFrame = -1; // aynı frame'de tüm barlar drop başlatınca sesi tek sefer çal
 
-        private Stack<GameObject> _nutStack;
+        private List<Color> _palette;
         private Vector3 _nutBaseScale = Vector3.one;
-        private int _index;
 
-        public void Initialize(List<Color> colors, int index)
+        // Tema root'u palette'i Initialize'dan önce enjekte eder
+        public void SetPalette(List<Color> palette) => _palette = palette;
+
+        protected override void OnInitialize(BarVisualData data)
         {
             _mpb ??= new MaterialPropertyBlock();
-            _nutStack = new Stack<GameObject>(colors.Count);
-            _index = index;
 
-            for (int i = 0; i < colors.Count; i++)
+            for (int i = 0; i < data.colorList.Count; i++)
             {
+                int colorIndex = data.colorList[i];
+                if (colorIndex == MagicSortLevel.Empty)
+                    continue;
+
                 GameObject nut = Instantiate(_NutPrefab, _NutHolder);
                 _nutBaseScale = nut.transform.localScale;
 
                 // Intro: topPositionHolder yüksekliğinde, barın arkasında (z=1), görünmez (scale 0) başla
-                var topLocal = _NutHolder.InverseTransformPoint(topPositionHolder.position);
+                var topLocal = _NutHolder.InverseTransformPoint(_TopPositionHolder.position);
                 nut.transform.localPosition = new Vector3(0f, topLocal.y, INTRO_START_Z);
                 nut.transform.localScale = Vector3.zero;
 
                 var meshRenderer = nut.GetComponentInChildren<MeshRenderer>();
                 meshRenderer.GetPropertyBlock(_mpb);
-                _mpb.SetColor(COLOR_PROPERTY, colors[i]);
+                _mpb.SetColor(COLOR_PROPERTY, _palette[colorIndex]);
                 meshRenderer.SetPropertyBlock(_mpb);
 
-                _nutStack.Push(nut);
+                ItemStack.Push(nut);
             }
 
             _BoltInteraction.PointerDown += BoltInteraction_PointerDown;
         }
 
-        public Sequence PlayIntroAnimation()
+        public override Sequence PlayIntroAnimation()
         {
             var sequence = DOTween.Sequence();
 
-            var topLocal = _NutHolder.InverseTransformPoint(topPositionHolder.position);
+            var topLocal = _NutHolder.InverseTransformPoint(_TopPositionHolder.position);
 
-            int slot = _nutStack.Count - 1; // stack üstten alta doğru enumerate eder
-            foreach (var nut in _nutStack)
+            int slot = ItemStack.Count - 1; // stack üstten alta doğru enumerate eder
+            foreach (var nut in ItemStack)
             {
                 GameObject introNut = nut;
 
@@ -115,66 +120,56 @@ namespace ReplicaProjects.MagicSort
 
         private void BoltInteraction_PointerDown()
         {
-            Clicked?.Invoke(_index);
+            RaiseClicked();
         }
 
-        public bool TryPeekNut(out GameObject nut)
+        public override void PushItem(GameObject item)
         {
-            return _nutStack.TryPeek(out nut);
+            DOTween.Kill(item); // item ID'li her şeyi öldürür (wobble dahil)
+
+            base.PushItem(item);
+            item.transform.SetParent(_NutHolder);
         }
 
-        public bool TryPopNut(out GameObject nut)
-        {
-            return _nutStack.TryPop(out nut);
-        }
-
-        public void PushNut(GameObject nut)
-        {
-            DOTween.Kill(nut); // nut ID'li her �eyi �ld�r�r (wobble dahil)
-
-            _nutStack.Push(nut);
-            nut.transform.SetParent(_NutHolder);
-        }
-
-        public void DeInitialize()
+        public override void DeInitialize()
         {
             _BoltInteraction.PointerDown -= BoltInteraction_PointerDown;
         }
 
-        public Sequence MoveBarSlotAnimation(GameObject nut, Vector3 sourceBarTopWorldPosition, float delay)
+        public override Sequence MoveItemToSlotAnimation(GameObject item, Vector3 sourceTopWorldPosition, float delay)
         {
-            DOTween.Kill(nut); // nut ID'li her �eyi �ld�r�r (wobble dahil)
+            DOTween.Kill(item); // item ID'li her şeyi öldürür (wobble dahil)
 
-            nut.transform.eulerAngles = Vector3.zero;
-            var nutSlotPosition = new Vector3(0f, (_nutStack.Count - 1) * NUT_SPACING, 0f);
+            item.transform.eulerAngles = Vector3.zero;
+            var nutSlotPosition = new Vector3(0f, (ItemStack.Count - 1) * NUT_SPACING, 0f);
 
-            var sourceLocalTarget = nut.transform.parent.InverseTransformPoint(sourceBarTopWorldPosition);
-            var localTarget = nut.transform.parent.InverseTransformPoint(topPositionHolder.position);
+            var sourceLocalTarget = item.transform.parent.InverseTransformPoint(sourceTopWorldPosition);
+            var localTarget = item.transform.parent.InverseTransformPoint(_TopPositionHolder.position);
             var rotationDelayApply = delay > 0 ? 1 : 0;
             var topMovementDelay = delay > 0 ? 0.25f : 0.1f;
 
             var sequence = DOTween.Sequence()
                 .SetDelay(delay)
-                .Append(nut.transform.DOLocalMove(sourceLocalTarget, topMovementDelay).SetEase(Ease.Linear))
-                .Join(nut.transform.DORotate(new Vector3(0, -360 * rotationDelayApply, 0), 0.25f * rotationDelayApply, RotateMode.FastBeyond360))
-                .Append(nut.transform.DOLocalMove(localTarget, 0.25f).SetEase(Ease.Linear)
+                .Append(item.transform.DOLocalMove(sourceLocalTarget, topMovementDelay).SetEase(Ease.Linear))
+                .Join(item.transform.DORotate(new Vector3(0, -360 * rotationDelayApply, 0), 0.25f * rotationDelayApply, RotateMode.FastBeyond360))
+                .Append(item.transform.DOLocalMove(localTarget, 0.25f).SetEase(Ease.Linear)
                     .OnComplete(() =>
                     {
                         _AudioSource.PlayOneShot(_Down);
                     }))
-                .Append(nut.transform.DOLocalMove(nutSlotPosition, 0.35f).SetEase(Ease.Linear))
-                .Join(nut.transform.DORotate(new Vector3(0, 360, 0), 0.35f, RotateMode.FastBeyond360))
+                .Append(item.transform.DOLocalMove(nutSlotPosition, 0.35f).SetEase(Ease.Linear))
+                .Join(item.transform.DORotate(new Vector3(0, 360, 0), 0.35f, RotateMode.FastBeyond360))
                  .OnComplete(() =>
                  {
                      _AudioSource.PlayOneShot(_NutSeat);
                  })
-                .SetId(nut)
-                .SetLink(nut, LinkBehaviour.KillOnDisable);
+                .SetId(item)
+                .SetLink(item, LinkBehaviour.KillOnDisable);
 
             return sequence;
         }
 
-        public Sequence PlayCapSolvedAnimation()
+        public override Sequence PlaySolvedAnimation()
         {
             DOTween.Kill(_Cap);
 
@@ -191,43 +186,50 @@ namespace ReplicaProjects.MagicSort
 
         }
 
-        public void MoveNutDeSelectedAnimation(GameObject nut)
+        public override void SetSolvedInstant()
         {
-            DOTween.Kill(nut); // nut ID'li her �eyi �ld�r�r (wobble dahil)
+            // PlaySolvedAnimation'ın bitiş pozu: tween'siz, sessiz
+            _Cap.transform.position = _CapEndPositionHolder.position;
+            _Cap.transform.localEulerAngles = new Vector3(90, 0, 0);
+        }
 
-            var pos = new Vector3(0f, (_nutStack.Count - 1) * NUT_SPACING, 0f);
-            nut.transform.eulerAngles = Vector3.zero;
+        public override void PlayItemDeselectedAnimation(GameObject item)
+        {
+            DOTween.Kill(item); // item ID'li her şeyi öldürür (wobble dahil)
+
+            var pos = new Vector3(0f, (ItemStack.Count - 1) * NUT_SPACING, 0f);
+            item.transform.eulerAngles = Vector3.zero;
 
             _AudioSource.PlayOneShot(_Down);
 
             DOTween.Sequence()
-                 .Append(nut.transform.DOLocalMove(pos, DESELECT_MOVE_DURATION).SetEase(Ease.Linear))
-                 .Join(nut.transform.DORotate(new Vector3(0, 360, 0), DESELECT_ROTATE_DURATION, RotateMode.FastBeyond360))
+                 .Append(item.transform.DOLocalMove(pos, DESELECT_MOVE_DURATION).SetEase(Ease.Linear))
+                 .Join(item.transform.DORotate(new Vector3(0, 360, 0), DESELECT_ROTATE_DURATION, RotateMode.FastBeyond360))
                  .InsertCallback(DESELECT_ROTATE_DURATION - 0.1f, () =>
                  {
                      _AudioSource.PlayOneShot(_NutSeat);
                  })
-                 .SetId(nut)
-                 .SetLink(nut, LinkBehaviour.KillOnDisable);
+                 .SetId(item)
+                 .SetLink(item, LinkBehaviour.KillOnDisable);
         }
 
-        public void MoveNutSelectedAnimation(GameObject nut)
+        public override void PlayItemSelectedAnimation(GameObject item)
         {
-            DOTween.Kill(nut);
+            DOTween.Kill(item);
 
-            var localTarget = nut.transform.parent.InverseTransformPoint(topPositionHolder.position);
+            var localTarget = item.transform.parent.InverseTransformPoint(_TopPositionHolder.position);
             _AudioSource.PlayOneShot(_Up);
 
             var sequence = DOTween.Sequence()
-                .Append(nut.transform.DOLocalMove(localTarget, 0.5f).SetEase(Ease.Linear))
-                .Join(nut.transform.DORotate(new Vector3(0, -360, 0), 0.65f, RotateMode.FastBeyond360))
-                .SetId(nut)
-                .SetLink(nut, LinkBehaviour.KillOnDisable);
+                .Append(item.transform.DOLocalMove(localTarget, 0.5f).SetEase(Ease.Linear))
+                .Join(item.transform.DORotate(new Vector3(0, -360, 0), 0.65f, RotateMode.FastBeyond360))
+                .SetId(item)
+                .SetLink(item, LinkBehaviour.KillOnDisable);
 
             sequence.AppendCallback(() =>
             {
                 float tilt = 7f, period = 2.5f, fadeInDuration = 0.5f;
-                float baseY = nut.transform.eulerAngles.y;
+                float baseY = item.transform.eulerAngles.y;
                 float elapsed = 0f;
 
                 DOVirtual.Float(0f, Mathf.PI * 2f, period, angle =>
@@ -236,12 +238,12 @@ namespace ReplicaProjects.MagicSort
                     float amplitude = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(elapsed / fadeInDuration));
                     float x = Mathf.Cos(angle) * tilt * amplitude;
                     float z = -Mathf.Sin(angle) * tilt * amplitude;
-                    nut.transform.rotation = Quaternion.Euler(x, baseY, z);
+                    item.transform.rotation = Quaternion.Euler(x, baseY, z);
                 })
                 .SetEase(Ease.Linear)
                 .SetLoops(-1, LoopType.Restart)
-                .SetId(nut) // <-- kritik: art�k DOTween.Kill(nut) ile �lebilir
-                .SetLink(nut, LinkBehaviour.KillOnDisable);
+                .SetId(item) // <-- kritik: artık DOTween.Kill(item) ile ölebilir
+                .SetLink(item, LinkBehaviour.KillOnDisable);
             });
         }
     }

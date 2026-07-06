@@ -38,6 +38,8 @@ namespace ReplicaProjects.MagicSort
         }
         public SequentialBarArrayInput GetBoard() => new(magicSortData.sequentialBarArray, _barHeight);
 
+        public void ClearSelection() => _selectedBar = -1;
+
         public void DeInitialize()
         {
 

@@ -1,4 +1,4 @@
-﻿using DG.Tweening;
+using DG.Tweening;
 using ReplicaProjects.Common;
 using System;
 using System.Collections.Generic;
@@ -12,7 +12,7 @@ namespace ReplicaProjects.MagicSort
 
         private EndScreenPresentation _endScreenPresentation;
         private InGameUI _inGameUI;
-        private MagicSortPresentation _presentation;
+        private MagicSortThemeManager _themes;
         private readonly MagicSortOrchestrator _orchestrator = new();
 
         private int _currentLevelIndex;
@@ -25,20 +25,27 @@ namespace ReplicaProjects.MagicSort
             Initialize();
         }
 
+        private void Update()
+        {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (Input.GetKeyDown(KeyCode.T))
+                SwitchTheme();
+#endif
+        }
+
         private void Create()
         {
-            var presentationPrefab = MagicSortReplicaAssetDatabase.MagicSortPresentationPrefab;
             var endScreenPresentationPrefab = MagicSortReplicaAssetDatabase.EndScreenPresentationPrefab;
             var _inGameUIPrefab = MagicSortReplicaAssetDatabase.InGameUIPrefab;
 
-            _presentation = Instantiate(presentationPrefab);
+            _themes = new MagicSortThemeManager(MagicSortReplicaAssetDatabase.ThemePrefabs);
             _endScreenPresentation = Instantiate(endScreenPresentationPrefab);
             _inGameUI = Instantiate(_inGameUIPrefab);
         }
 
         private void Initialize()
         {
-            _presentation.AnyBarViewClicked += OnAnyBarViewClicked;
+            _themes.AnyBarViewClicked += OnAnyBarViewClicked;
 
             LoadLevel(_currentLevelIndex);
         }
@@ -85,8 +92,18 @@ namespace ReplicaProjects.MagicSort
             _endScreenPresentation.InteractionButtonPressed -= OnEndGameButtonPressed;
             _inGameUI.InteractionButtonPressed -= OnRestartLevelButtonClicked;
 
-            _presentation.DeInitialize();
+            _themes.Active.DeInitialize();
             LoadLevel(index);
+        }
+
+        private void SwitchTheme()
+        {
+            if (_isSolvedLevel)
+                return; // end screen bekliyor; tema değiştirme
+
+            _themes.ActivateNext();          // eski temayı DeInitialize edip havuzdan sıradakini açar
+            _orchestrator.ClearSelection();  // board korunur, seçim temizlenir
+            Build(_orchestrator.GetBoard()); // yeni tema mevcut board'dan kendini kurar
         }
 
         private void OnAnyBarViewClicked(int barIndex)
@@ -95,7 +112,7 @@ namespace ReplicaProjects.MagicSort
 
             _isSolvedLevel = result.LevelSolved;
 
-            _presentation.HandleTapResponse(result);
+            _themes.Active.HandleTapResponse(result);
 
             TryToCallEndGame();
         }
@@ -116,10 +133,13 @@ namespace ReplicaProjects.MagicSort
                     data.colorList.Add(slots[i]);
                 }
 
+                data.isSolved = _orchestrator._magicSortLogic.IsBarSolved(in board, b);
+
                 barDataList.Add(data);
             }
 
-            _presentation.Initialize(barDataList);
+            _themes.ResetCamera();
+            _themes.Active.Initialize(barDataList);
         }
     }
 }
