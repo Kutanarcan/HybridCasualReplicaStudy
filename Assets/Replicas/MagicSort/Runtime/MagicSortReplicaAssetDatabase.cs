@@ -9,6 +9,7 @@ namespace ReplicaProjects.MagicSort
         // implemente eden bir bileşen taşıyan prefab
         public static GameObject[] ThemePrefabs =
         {
+            Resources.Load<GameObject>("Themes/TubeThemeRoot"),
             Resources.Load<GameObject>("Themes/BoltThemeRoot"),
         };
 

@@ -2,30 +2,28 @@ using DG.Tweening;
 using System;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.Serialization;
 
 namespace ReplicaProjects.MagicSort
 {
-    public class BoltThemeRoot : MonoBehaviour, IMagicSortTheme, DiscreteItemBoard.IItemAnimator
+    public class TubeThemeRoot : MonoBehaviour, IMagicSortTheme, DiscreteItemBoard.IItemAnimator
     {
         public event Action<int> BarTapped;
 
-        [SerializeField] private BoltBarView _BarViewPrefab;
+        [SerializeField] private TubeBarView _BarViewPrefab;
         [SerializeField] private ColorPallete _colorPalette;
 
-        private const float X_OFFSET = 1.75F;
-        private const float ROW_Y_OFFSET = 3.0F;   // ekran aralığı: satır başına ekstra düşüş
-        private const float ROW_Z_OFFSET = 2.0F;   // derinlik: ön satırlar arkadakileri örter
+        private const float X_OFFSET = 1.25F;
+        private const float ROW_Y_OFFSET = 4.5F;   // satır başına düşüş
         private const int MAX_COLUMNS = 3;
 
-        private const float BAR_VISUAL_HEIGHT = 2.5F; // somun yığını + kapak için üst pay
+        private const float BAR_VISUAL_HEIGHT = 4.5F; // tüp yüksekliği için üst pay (gerekirse ayarla)
         private const float CAMERA_PAD_X = 1.0F;
         private const float CAMERA_PAD_Y = 0.75F;
 
-        public readonly Vector3 Offset = new Vector3(X_OFFSET, ROW_Y_OFFSET, ROW_Z_OFFSET);
+        public readonly Vector3 Offset = new Vector3(X_OFFSET, ROW_Y_OFFSET, 0f);
 
         private GameObject _barsRoot;
-        private List<BoltBarView> _views;
+        private List<TubeBarView> _views;
         private DiscreteItemBoard _board;
 
         public void Build(IReadOnlyList<BarVisualData> bars)
@@ -33,7 +31,7 @@ namespace ReplicaProjects.MagicSort
             _barsRoot = new GameObject("BarsRoot");
             _barsRoot.transform.SetParent(transform, false);
 
-            _views = new List<BoltBarView>(bars.Count);
+            _views = new List<TubeBarView>(bars.Count);
             _board = new DiscreteItemBoard(bars.Count, this);
 
             for (int i = 0; i < bars.Count; i++)
@@ -41,8 +39,8 @@ namespace ReplicaProjects.MagicSort
                 int col = i % MAX_COLUMNS;
                 int row = i / MAX_COLUMNS;
 
-                BoltBarView barView = Instantiate(_BarViewPrefab, _barsRoot.transform);
-                barView.transform.localPosition = new Vector3(col * Offset.x, -row * Offset.y, -row * Offset.z);
+                TubeBarView barView = Instantiate(_BarViewPrefab, _barsRoot.transform);
+                barView.transform.localPosition = new Vector3(col * Offset.x, -row * Offset.y, 0f);
 
                 barView.SetPalette(_colorPalette.colorList);
 
@@ -52,9 +50,6 @@ namespace ReplicaProjects.MagicSort
                 var items = barView.Setup(bars[i]);
                 foreach (var item in items)
                     _board.Push(barIndex, item);
-
-                if (bars[i].IsSolved)
-                    barView.SetSolvedInstant();
 
                 _views.Add(barView);
             }
@@ -107,32 +102,32 @@ namespace ReplicaProjects.MagicSort
 
         public void ShowSolved(int bar, bool animated)
         {
-            if (animated)
-                _views[bar].PlaySolvedAnimation();
-            else
-                _views[bar].SetSolvedInstant();
+            // Solved animasyonu henüz yok.
         }
 
         private void OnBarViewClicked(int index) => BarTapped?.Invoke(index);
 
-        // DiscreteItemBoard.IItemAnimator: her item kendi bar view'ının içinde yaşar,
+        // DiscreteItemBoard.IItemAnimator: her top kendi bar view'ının içinde yaşar,
         // bu yüzden hedef bar view'a devredilir.
         public Sequence MoveItem(GameObject item, int targetBar, int targetSlot, Vector3 sourceTopWorldPos, float delay)
             => _views[targetBar].MoveItem(item, targetBar, targetSlot, sourceTopWorldPos, delay);
 
-        public void Selected(GameObject item) => item.GetComponentInParent<BoltBarView>().Selected(item);
-        public void Deselected(GameObject item) => item.GetComponentInParent<BoltBarView>().Deselected(item);
+        public void Selected(GameObject item) => item.GetComponentInParent<TubeBarView>().Selected(item);
+        public void Deselected(GameObject item) => item.GetComponentInParent<TubeBarView>().Deselected(item);
 
         private void AdjustCamera(int barCount)
         {
             Camera cam = Camera.main;
             if (cam == null)
                 return;
-            cam.transform.eulerAngles = new Vector3(35, 0, 0);
 
             Transform camT = cam.transform;
 
-            // Bar taban ve tepe noktalarını kamera uzayına yansıt, board'un ekran sınırlarını bul
+            // Bar tepe/taban noktalarını kamera uzayına yansıt, board'un ekran sınırlarını bul.
+            // Tüp sprite'ı bar orijininde MERKEZLENDİĞİ için (pivot = center) dikey açıklık
+            // orijinin ETRAFINDA simetriktir; aksi halde board dikeyde kayar.
+            float halfVisual = BAR_VISUAL_HEIGHT * 0.5f;
+
             float minX = float.MaxValue, maxX = float.MinValue;
             float minY = float.MaxValue, maxY = float.MinValue;
 
@@ -141,14 +136,15 @@ namespace ReplicaProjects.MagicSort
                 int col = i % MAX_COLUMNS;
                 int row = i / MAX_COLUMNS;
 
-                Vector3 barBase = transform.TransformPoint(new Vector3(col * Offset.x, -row * Offset.y, -row * Offset.z));
-                Vector3 barTop = barBase + Vector3.up * BAR_VISUAL_HEIGHT;
+                Vector3 barCenter = transform.TransformPoint(new Vector3(col * Offset.x, -row * Offset.y, 0f));
+                Vector3 barTop = barCenter + Vector3.up * halfVisual;
+                Vector3 barBottom = barCenter - Vector3.up * halfVisual;
 
-                Vector3 lp = camT.InverseTransformPoint(barBase);
+                Vector3 lp = camT.InverseTransformPoint(barTop);
                 minX = Mathf.Min(minX, lp.x); maxX = Mathf.Max(maxX, lp.x);
                 minY = Mathf.Min(minY, lp.y); maxY = Mathf.Max(maxY, lp.y);
 
-                lp = camT.InverseTransformPoint(barTop);
+                lp = camT.InverseTransformPoint(barBottom);
                 minX = Mathf.Min(minX, lp.x); maxX = Mathf.Max(maxX, lp.x);
                 minY = Mathf.Min(minY, lp.y); maxY = Mathf.Max(maxY, lp.y);
             }

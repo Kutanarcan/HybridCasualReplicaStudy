@@ -46,7 +46,7 @@ namespace ReplicaProjects.MagicSort
                 _animator.Deselected(item);
         }
 
-        public void PlayPour(in TransportData cmd, Vector3 sourceTopWorldPos, Action onComplete)
+        public void PlayTransport(in TransportData cmd, Vector3 sourceTopWorldPos, Action onComplete)
         {
             Sequence last = null;
             for (int i = 0; i < cmd.MovedCount; i++)
