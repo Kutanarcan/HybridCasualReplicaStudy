@@ -16,7 +16,7 @@ public readonly struct TapResult
     public readonly int SourceBar;                   // Consumed: kaynak; diğerlerinde ilgili bar
     public readonly int TargetBar;                   // sadece Consumed'da anlamlı
     public readonly PlacementOutcome RejectReason;   // sadece Retargeted'da anlamlı
-    public readonly AvailablePlacementResult Pour;   // sadece Consumed'da anlamlı
+    public readonly AvailablePlacementResult TransportResult;   // sadece Consumed'da anlamlı
     public readonly bool TargetBarSolved;            // sadece Consumed'da anlamlı, ApplyPour sonrası doldurulur
     public readonly bool LevelSolved;                // sadece Consumed'da anlamlı, ApplyPour sonrası doldurulur
 
@@ -25,12 +25,12 @@ public readonly struct TapResult
                       bool targetBarSolved = false, bool levelSolved = false)
     {
         Kind = kind; NewSource = newSource; SourceBar = sourceBar;
-        TargetBar = targetBar; RejectReason = reason; Pour = pour;
+        TargetBar = targetBar; RejectReason = reason; TransportResult = pour;
         TargetBarSolved = targetBarSolved; LevelSolved = levelSolved;
     }
 
     public TapResult WithSolveInfo(bool targetBarSolved, bool levelSolved)
-        => new(Kind, NewSource, SourceBar, TargetBar, RejectReason, Pour, targetBarSolved, levelSolved);
+        => new(Kind, NewSource, SourceBar, TargetBar, RejectReason, TransportResult, targetBarSolved, levelSolved);
 
     public static TapResult Ignored()
         => new(TapKind.Ignored, -1, -1, -1, default, default);

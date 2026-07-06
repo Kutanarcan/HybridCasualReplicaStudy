@@ -10,6 +10,7 @@ namespace ReplicaProjects.MagicSort
         public readonly int barHeight;
 
         public int BarCount => placementSpanArray.Length / barHeight;
+        public int BarHeight => barHeight;
 
         public SequentialBarArrayInput(ReadOnlySpan<int> sequentialBarArray, int barHeight)
         {

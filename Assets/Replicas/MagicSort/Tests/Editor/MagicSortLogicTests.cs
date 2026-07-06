@@ -384,8 +384,8 @@ namespace ReplicaProjects.MagicSort.Tests
             Assert.AreEqual(NoSelection, result.NewSource);
             Assert.AreEqual(0, result.SourceBar);
             Assert.AreEqual(1, result.TargetBar);
-            Assert.IsTrue(result.Pour.Success);
-            Assert.AreEqual(1, result.Pour.movedCount);
+            Assert.IsTrue(result.TransportResult.Success);
+            Assert.AreEqual(1, result.TransportResult.movedCount);
         }
 
         [Test]

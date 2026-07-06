@@ -1,11 +1,15 @@
+using DG.Tweening;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Serialization;
 
 namespace ReplicaProjects.MagicSort
 {
-    public class BoltThemeRoot : MagicSortThemeRoot
+    public class BoltThemeRoot : MonoBehaviour, IMagicSortTheme, DiscreteItemBoard.IItemAnimator
     {
+        public event Action<int> BarTapped;
+
         [FormerlySerializedAs("_MagicSortBarViewPrefab")]
         [SerializeField] private BoltBarView _BarViewPrefab;
         [SerializeField] private List<Color> _colorPalette;
@@ -21,28 +25,106 @@ namespace ReplicaProjects.MagicSort
 
         public readonly Vector3 Offset = new Vector3(X_OFFSET, ROW_Y_OFFSET, ROW_Z_OFFSET);
 
-        protected override List<MagicSortBarViewBase> CreateBarViews(List<BarVisualData> bars)
+        private GameObject _barsRoot;
+        private List<BoltBarView> _views;
+        private DiscreteItemBoard _board;
+
+        public void Build(IReadOnlyList<BarVisualData> bars)
         {
-            var barViewList = new List<MagicSortBarViewBase>(bars.Count);
+            _barsRoot = new GameObject("BarsRoot");
+            _barsRoot.transform.SetParent(transform, false);
+
+            _views = new List<BoltBarView>(bars.Count);
+            _board = new DiscreteItemBoard(bars.Count, this);
 
             for (int i = 0; i < bars.Count; i++)
             {
                 int col = i % MAX_COLUMNS;
                 int row = i / MAX_COLUMNS;
 
-                BoltBarView barView = Instantiate(_BarViewPrefab, BarsRoot.transform);
+                BoltBarView barView = Instantiate(_BarViewPrefab, _barsRoot.transform);
                 barView.transform.localPosition = new Vector3(col * Offset.x, -row * Offset.y, -row * Offset.z);
 
                 barView.SetPalette(_colorPalette);
-                barView.Initialize(bars[i], i);
 
-                barViewList.Add(barView);
+                int barIndex = i;
+                barView.Clicked += () => OnBarViewClicked(barIndex);
+
+                var items = barView.Setup(bars[i]);
+                foreach (var item in items)
+                    _board.Push(barIndex, item);
+
+                if (bars[i].IsSolved)
+                    barView.SetSolvedInstant();
+
+                _views.Add(barView);
             }
 
-            return barViewList;
+            AdjustCamera(bars.Count);
         }
 
-        protected override void AdjustCamera(int barCount)
+        public void Teardown()
+        {
+            for (int i = _views.Count - 1; i >= 0; i--)
+            {
+                var view = _views[i];
+                if (view == null)
+                    continue;
+
+                view.Teardown();
+            }
+
+            Destroy(_barsRoot); // SetLink(KillOnDisable) sayesinde çalışan tween'ler de ölür
+            _barsRoot = null;
+            _views = null;
+            _board = null;
+        }
+
+        public void PlayIntro(Action onComplete)
+        {
+            int remaining = _views.Count;
+            if (remaining == 0)
+            {
+                onComplete();
+                return;
+            }
+
+            foreach (var view in _views)
+            {
+                view.PlayIntroAnimation(view.ItemsBottomToTop()).OnComplete(() =>
+                {
+                    remaining--;
+                    if (remaining == 0)
+                        onComplete();
+                });
+            }
+        }
+
+        public void ShowSelected(int bar) => _board.Selected(bar);
+        public void ShowDeselected(int bar) => _board.Deselected(bar);
+
+        public void PlayTransport(in TransportData command, Action onComplete)
+            => _board.PlayPour(in command, _views[command.SourceBar].TopPositionHolder.position, onComplete);
+
+        public void ShowSolved(int bar, bool animated)
+        {
+            if (animated)
+                _views[bar].PlaySolvedAnimation();
+            else
+                _views[bar].SetSolvedInstant();
+        }
+
+        private void OnBarViewClicked(int index) => BarTapped?.Invoke(index);
+
+        // DiscreteItemBoard.IItemAnimator: her item kendi bar view'ının içinde yaşar,
+        // bu yüzden hedef bar view'a devredilir.
+        public Sequence MoveItem(GameObject item, int targetBar, int targetSlot, Vector3 sourceTopWorldPos, float delay)
+            => _views[targetBar].MoveItem(item, targetBar, targetSlot, sourceTopWorldPos, delay);
+
+        public void Selected(GameObject item) => item.GetComponentInParent<BoltBarView>().Selected(item);
+        public void Deselected(GameObject item) => item.GetComponentInParent<BoltBarView>().Deselected(item);
+
+        private void AdjustCamera(int barCount)
         {
             Camera cam = Camera.main;
             if (cam == null)

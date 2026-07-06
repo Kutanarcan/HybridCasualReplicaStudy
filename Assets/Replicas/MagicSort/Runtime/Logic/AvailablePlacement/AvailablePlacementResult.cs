@@ -18,6 +18,8 @@ namespace ReplicaProjects.MagicSort
         public readonly int targetNewTop;
 
         public bool Success => outCome == PlacementOutcome.Moved;
+        // targetNewTop, taşımanın sonunda hedefin üstünde kalan rengi tutar; Moved durumunda bu, taşınan renktir.
+        public int MovedColor => targetNewTop;
 
         private AvailablePlacementResult(PlacementOutcome outcome, int moved, int srcTop, int tgtTop)
         { outCome = outcome; movedCount = moved; sourceNewTop = srcTop; targetNewTop = tgtTop; }

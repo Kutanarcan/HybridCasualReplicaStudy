@@ -5,10 +5,11 @@ namespace ReplicaProjects.MagicSort
 {
     public static class MagicSortReplicaAssetDatabase
     {
-        // Yeni tema eklemek = buraya bir satır + Resources/Themes/ altına prefab
-        public static MagicSortThemeRoot[] ThemePrefabs =
+        // Yeni tema eklemek = buraya bir satır + Resources/Themes/ altına, IMagicSortTheme
+        // implemente eden bir bileşen taşıyan prefab
+        public static GameObject[] ThemePrefabs =
         {
-            Resources.Load<MagicSortThemeRoot>("Themes/BoltThemeRoot"),
+            Resources.Load<GameObject>("Themes/BoltThemeRoot"),
         };
 
         public static EndScreenPresentation EndScreenPresentationPrefab = Resources.Load<EndScreenPresentation>("EndScreenPresentation");

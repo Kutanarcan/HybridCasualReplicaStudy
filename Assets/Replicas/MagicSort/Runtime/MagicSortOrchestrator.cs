@@ -11,7 +11,8 @@ namespace ReplicaProjects.MagicSort
     public class MagicSortOrchestrator
     {
         private MagisSortDataOfArrays magicSortData;
-        public readonly MagicSortLogic _magicSortLogic = new();
+        private readonly MagicSortLogic _magicSortLogic = new();
+        public MagicSortLogic Logic => _magicSortLogic;
 
         private int _selectedBar = -1;
         public int _barHeight;
@@ -62,7 +63,7 @@ namespace ReplicaProjects.MagicSort
             if (result.Kind == TapKind.Consumed)
             {
                 _magicSortLogic.ApplyPour(magicSortData.sequentialBarArray, _barHeight,
-                                          result.SourceBar, result.TargetBar, result.Pour.movedCount);
+                                          result.SourceBar, result.TargetBar, result.TransportResult.movedCount);
 
                 var newBoard = GetBoard();
                 result = result.WithSolveInfo(

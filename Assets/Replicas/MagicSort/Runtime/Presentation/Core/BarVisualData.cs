@@ -1,10 +1,14 @@
-using System.Collections.Generic;
-
 namespace ReplicaProjects.MagicSort
 {
-    public class BarVisualData
+    public sealed class BarVisualData
     {
-        public List<int> colorList;
-        public bool isSolved; // tema değişiminde çözülmüş barların kapağını anında koymak için
+        public readonly int[] Colors;    // index 0 = alt slot; MagicSortLevel.Empty = boş
+        public readonly bool IsSolved;   // tema geçişinde anlık "çözülmüş" pozu için
+
+        public BarVisualData(int[] colors, bool isSolved)
+        {
+            Colors = colors;
+            IsSolved = isSolved;
+        }
     }
 }

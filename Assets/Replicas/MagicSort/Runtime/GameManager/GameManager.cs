@@ -1,6 +1,6 @@
+
 using DG.Tweening;
 using ReplicaProjects.Common;
-using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -13,6 +13,7 @@ namespace ReplicaProjects.MagicSort
         private EndScreenPresentation _endScreenPresentation;
         private InGameUI _inGameUI;
         private MagicSortThemeManager _themes;
+        private PresentationCore _presentation;
         private readonly MagicSortOrchestrator _orchestrator = new();
 
         private int _currentLevelIndex;
@@ -39,13 +40,14 @@ namespace ReplicaProjects.MagicSort
             var _inGameUIPrefab = MagicSortReplicaAssetDatabase.InGameUIPrefab;
 
             _themes = new MagicSortThemeManager(MagicSortReplicaAssetDatabase.ThemePrefabs);
+            _presentation = new PresentationCore(_themes.Active);
             _endScreenPresentation = Instantiate(endScreenPresentationPrefab);
             _inGameUI = Instantiate(_inGameUIPrefab);
         }
 
         private void Initialize()
         {
-            _themes.AnyBarViewClicked += OnAnyBarViewClicked;
+            _themes.BarTapped += OnBarTapped;
 
             LoadLevel(_currentLevelIndex);
         }
@@ -92,7 +94,7 @@ namespace ReplicaProjects.MagicSort
             _endScreenPresentation.InteractionButtonPressed -= OnEndGameButtonPressed;
             _inGameUI.InteractionButtonPressed -= OnRestartLevelButtonClicked;
 
-            _themes.Active.DeInitialize();
+            _presentation.Teardown();
             LoadLevel(index);
         }
 
@@ -101,45 +103,30 @@ namespace ReplicaProjects.MagicSort
             if (_isSolvedLevel)
                 return; // end screen bekliyor; tema değiştirme
 
-            _themes.ActivateNext();          // eski temayı DeInitialize edip havuzdan sıradakini açar
+            _themes.ActivateNext();          // eski temayı Teardown edip havuzdan sıradakini açar
+            _presentation = new PresentationCore(_themes.Active);
             _orchestrator.ClearSelection();  // board korunur, seçim temizlenir
             Build(_orchestrator.GetBoard()); // yeni tema mevcut board'dan kendini kurar
         }
 
-        private void OnAnyBarViewClicked(int barIndex)
+        private void OnBarTapped(int barIndex)
         {
-            TapResult result = _orchestrator.HandleTap(barIndex);
+            if (_presentation.InputLocked)
+                return;
+
+            var result = _orchestrator.HandleTap(barIndex);
 
             _isSolvedLevel = result.LevelSolved;
 
-            _themes.Active.HandleTapResponse(result);
+            _presentation.Handle(in result);
 
             TryToCallEndGame();
         }
 
         public void Build(in SequentialBarArrayInput board)
         {
-            var barDataList = new List<BarVisualData>(board.BarCount);
-
-            for (int b = 0; b < board.BarCount; b++)
-            {
-                var slots = board.Bar(b);
-
-                var data = new BarVisualData();
-                data.colorList = new List<int>(board.barHeight);
-
-                for (int i = 0; i < slots.Length; i++)
-                {
-                    data.colorList.Add(slots[i]);
-                }
-
-                data.isSolved = _orchestrator._magicSortLogic.IsBarSolved(in board, b);
-
-                barDataList.Add(data);
-            }
-
             _themes.ResetCamera();
-            _themes.Active.Initialize(barDataList);
+            _presentation.Build(in board, _orchestrator.Logic);
         }
     }
 }

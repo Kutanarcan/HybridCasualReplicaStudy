@@ -1,11 +1,12 @@
 using DG.Tweening;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Serialization;
 
 namespace ReplicaProjects.MagicSort
 {
-    public class BoltBarView : MagicSortBarViewBase
+    public class BoltBarView : MonoBehaviour, DiscreteItemBoard.IItemAnimator
     {
         [SerializeField] private AudioClip _Up;
         [SerializeField] private AudioClip _Down;
@@ -23,7 +24,9 @@ namespace ReplicaProjects.MagicSort
         [SerializeField] private Transform _TopPositionHolder;
         [SerializeField] private BoltInteraction _BoltInteraction;
 
-        public override Transform TopPositionHolder => _TopPositionHolder;
+        public event Action Clicked;
+
+        public Transform TopPositionHolder => _TopPositionHolder;
 
         private const float NUT_SPACING = 0.5f;
         private const string COLOR_PROPERTY = "_Color";
@@ -40,16 +43,20 @@ namespace ReplicaProjects.MagicSort
         private List<Color> _palette;
         private Vector3 _nutBaseScale = Vector3.one;
 
-        // Tema root'u palette'i Initialize'dan önce enjekte eder
+        // Tema root'u palette'i Setup'tan önce enjekte eder
         public void SetPalette(List<Color> palette) => _palette = palette;
 
-        protected override void OnInitialize(BarVisualData data)
+        /// <summary>Renk verisinden somunları yaratır. Dönüş: alttan üste sırayla (index 0 = alt slot).</summary>
+        public List<GameObject> Setup(BarVisualData data)
         {
             _mpb ??= new MaterialPropertyBlock();
 
-            for (int i = 0; i < data.colorList.Count; i++)
+            var items = new List<GameObject>(data.Colors.Length);
+            var topLocal = _NutHolder.InverseTransformPoint(_TopPositionHolder.position);
+
+            for (int i = 0; i < data.Colors.Length; i++)
             {
-                int colorIndex = data.colorList[i];
+                int colorIndex = data.Colors[i];
                 if (colorIndex == MagicSortLevel.Empty)
                     continue;
 
@@ -57,7 +64,6 @@ namespace ReplicaProjects.MagicSort
                 _nutBaseScale = nut.transform.localScale;
 
                 // Intro: topPositionHolder yüksekliğinde, barın arkasında (z=1), görünmez (scale 0) başla
-                var topLocal = _NutHolder.InverseTransformPoint(_TopPositionHolder.position);
                 nut.transform.localPosition = new Vector3(0f, topLocal.y, INTRO_START_Z);
                 nut.transform.localScale = Vector3.zero;
 
@@ -66,22 +72,35 @@ namespace ReplicaProjects.MagicSort
                 _mpb.SetColor(COLOR_PROPERTY, _palette[colorIndex]);
                 meshRenderer.SetPropertyBlock(_mpb);
 
-                ItemStack.Push(nut);
+                items.Add(nut);
             }
 
-            _BoltInteraction.PointerDown += BoltInteraction_PointerDown;
+            _BoltInteraction.PointerDown += OnPointerDown;
+            return items;
         }
 
-        public override Sequence PlayIntroAnimation()
+        public void Teardown() => _BoltInteraction.PointerDown -= OnPointerDown;
+
+        /// <summary>Barın şu anki somunları, alttan üste sırayla (sibling order = slot order).</summary>
+        public List<GameObject> ItemsBottomToTop()
+        {
+            var items = new List<GameObject>(_NutHolder.childCount);
+            for (int i = 0; i < _NutHolder.childCount; i++)
+                items.Add(_NutHolder.GetChild(i).gameObject);
+            return items;
+        }
+
+        private void OnPointerDown() => Clicked?.Invoke();
+
+        /// <summary>items: alttan üste sırayla (Setup'ın döndürdüğü sıra); slot = dizideki index.</summary>
+        public Sequence PlayIntroAnimation(IReadOnlyList<GameObject> items)
         {
             var sequence = DOTween.Sequence();
-
             var topLocal = _NutHolder.InverseTransformPoint(_TopPositionHolder.position);
 
-            int slot = ItemStack.Count - 1; // stack üstten alta doğru enumerate eder
-            foreach (var nut in ItemStack)
+            for (int slot = 0; slot < items.Count; slot++)
             {
-                GameObject introNut = nut;
+                GameObject introNut = items[slot];
 
                 // Alttaki somun önce belirsin: slot 0 → gecikme 0
                 float appearTime = slot * INTRO_STAGGER;
@@ -102,8 +121,6 @@ namespace ReplicaProjects.MagicSort
                     introNut.transform.DOLocalMove(slotPosition, DESELECT_MOVE_DURATION).SetEase(Ease.Linear));
                 sequence.Insert(dropTime,
                     introNut.transform.DORotate(new Vector3(0, 360, 0), DESELECT_ROTATE_DURATION, RotateMode.FastBeyond360));
-
-                slot--;
             }
 
             return sequence.SetLink(gameObject, LinkBehaviour.KillOnDisable);
@@ -118,30 +135,13 @@ namespace ReplicaProjects.MagicSort
             _AudioSource.PlayOneShot(_Down);
         }
 
-        private void BoltInteraction_PointerDown()
-        {
-            RaiseClicked();
-        }
-
-        public override void PushItem(GameObject item)
+        public Sequence MoveItemToSlotAnimation(GameObject item, Vector3 sourceTopWorldPosition, int targetSlot, float delay)
         {
             DOTween.Kill(item); // item ID'li her şeyi öldürür (wobble dahil)
 
-            base.PushItem(item);
             item.transform.SetParent(_NutHolder);
-        }
-
-        public override void DeInitialize()
-        {
-            _BoltInteraction.PointerDown -= BoltInteraction_PointerDown;
-        }
-
-        public override Sequence MoveItemToSlotAnimation(GameObject item, Vector3 sourceTopWorldPosition, float delay)
-        {
-            DOTween.Kill(item); // item ID'li her şeyi öldürür (wobble dahil)
-
             item.transform.eulerAngles = Vector3.zero;
-            var nutSlotPosition = new Vector3(0f, (ItemStack.Count - 1) * NUT_SPACING, 0f);
+            var nutSlotPosition = new Vector3(0f, targetSlot * NUT_SPACING, 0f);
 
             var sourceLocalTarget = item.transform.parent.InverseTransformPoint(sourceTopWorldPosition);
             var localTarget = item.transform.parent.InverseTransformPoint(_TopPositionHolder.position);
@@ -169,7 +169,7 @@ namespace ReplicaProjects.MagicSort
             return sequence;
         }
 
-        public override Sequence PlaySolvedAnimation()
+        public Sequence PlaySolvedAnimation()
         {
             DOTween.Kill(_Cap);
 
@@ -186,34 +186,18 @@ namespace ReplicaProjects.MagicSort
 
         }
 
-        public override void SetSolvedInstant()
+        public void SetSolvedInstant()
         {
             // PlaySolvedAnimation'ın bitiş pozu: tween'siz, sessiz
             _Cap.transform.position = _CapEndPositionHolder.position;
             _Cap.transform.localEulerAngles = new Vector3(90, 0, 0);
         }
 
-        public override void PlayItemDeselectedAnimation(GameObject item)
-        {
-            DOTween.Kill(item); // item ID'li her şeyi öldürür (wobble dahil)
+        // DiscreteItemBoard.IItemAnimator
+        public Sequence MoveItem(GameObject item, int targetBar, int targetSlot, Vector3 sourceTopWorldPos, float delay)
+            => MoveItemToSlotAnimation(item, sourceTopWorldPos, targetSlot, delay);
 
-            var pos = new Vector3(0f, (ItemStack.Count - 1) * NUT_SPACING, 0f);
-            item.transform.eulerAngles = Vector3.zero;
-
-            _AudioSource.PlayOneShot(_Down);
-
-            DOTween.Sequence()
-                 .Append(item.transform.DOLocalMove(pos, DESELECT_MOVE_DURATION).SetEase(Ease.Linear))
-                 .Join(item.transform.DORotate(new Vector3(0, 360, 0), DESELECT_ROTATE_DURATION, RotateMode.FastBeyond360))
-                 .InsertCallback(DESELECT_ROTATE_DURATION - 0.05f, () =>
-                 {
-                     _AudioSource.PlayOneShot(_NutSeat);
-                 })
-                 .SetId(item)
-                 .SetLink(item, LinkBehaviour.KillOnDisable);
-        }
-
-        public override void PlayItemSelectedAnimation(GameObject item)
+        public void Selected(GameObject item)
         {
             DOTween.Kill(item);
 
@@ -245,6 +229,28 @@ namespace ReplicaProjects.MagicSort
                 .SetId(item) // <-- kritik: artık DOTween.Kill(item) ile ölebilir
                 .SetLink(item, LinkBehaviour.KillOnDisable);
             });
+        }
+
+        public void Deselected(GameObject item)
+        {
+            DOTween.Kill(item); // item ID'li her şeyi öldürür (wobble dahil)
+
+            // Çocuklar hep alttan üste sırayla eklenir (Setup) / en üste eklenir (MoveItem);
+            // bu yüzden sibling index, item'in kendi barındaki slotuna eşittir.
+            var pos = new Vector3(0f, item.transform.GetSiblingIndex() * NUT_SPACING, 0f);
+            item.transform.eulerAngles = Vector3.zero;
+
+            _AudioSource.PlayOneShot(_Down);
+
+            DOTween.Sequence()
+                 .Append(item.transform.DOLocalMove(pos, DESELECT_MOVE_DURATION).SetEase(Ease.Linear))
+                 .Join(item.transform.DORotate(new Vector3(0, 360, 0), DESELECT_ROTATE_DURATION, RotateMode.FastBeyond360))
+                 .InsertCallback(DESELECT_ROTATE_DURATION - 0.05f, () =>
+                 {
+                     _AudioSource.PlayOneShot(_NutSeat);
+                 })
+                 .SetId(item)
+                 .SetLink(item, LinkBehaviour.KillOnDisable);
         }
     }
 }
