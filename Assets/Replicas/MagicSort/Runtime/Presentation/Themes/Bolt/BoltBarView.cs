@@ -158,7 +158,7 @@ namespace ReplicaProjects.MagicSort
                         _AudioSource.PlayOneShot(_Down);
                     }))
                 .Append(item.transform.DOLocalMove(nutSlotPosition, 0.35f).SetEase(Ease.Linear))
-                .Join(item.transform.DORotate(new Vector3(0, 360, 0), 0.35f, RotateMode.FastBeyond360))
+                .Join(item.transform.DORotate(new Vector3(0, 360 * 2, 0), 0.35f, RotateMode.FastBeyond360))
                  .OnComplete(() =>
                  {
                      _AudioSource.PlayOneShot(_NutSeat);
@@ -205,7 +205,7 @@ namespace ReplicaProjects.MagicSort
             DOTween.Sequence()
                  .Append(item.transform.DOLocalMove(pos, DESELECT_MOVE_DURATION).SetEase(Ease.Linear))
                  .Join(item.transform.DORotate(new Vector3(0, 360, 0), DESELECT_ROTATE_DURATION, RotateMode.FastBeyond360))
-                 .InsertCallback(DESELECT_ROTATE_DURATION - 0.1f, () =>
+                 .InsertCallback(DESELECT_ROTATE_DURATION - 0.05f, () =>
                  {
                      _AudioSource.PlayOneShot(_NutSeat);
                  })

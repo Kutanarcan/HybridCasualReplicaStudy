@@ -410,16 +410,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 938ad6a5649d6ac4fa8e30470d308ade, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _Up: {fileID: 8300000, guid: 166b33ac03184ca44b2bd32bf684995f, type: 3}
-  _Down: {fileID: 8300000, guid: b135152c7030c7440b04db2c1ef2cba1, type: 3}
+  _Up: {fileID: 8300000, guid: 76425e33e341c554d8511a948bec4949, type: 3}
+  _Down: {fileID: 8300000, guid: 85734f3b68fd59d4ba8347ebb0c15778, type: 3}
   _CapWin: {fileID: 8300000, guid: 833fdb26ee4ab60438c95e932992d547, type: 3}
-  _NutSeat: {fileID: 8300000, guid: 8c0db90acaf52d849b94c04b7a08616f, type: 3}
+  _NutSeat: {fileID: 8300000, guid: d39829f277db1c7458999373e2a82dee, type: 3}
   _AudioSource: {fileID: 7416811124747693750}
   _NutPrefab: {fileID: 4550658439133935838, guid: f16ac6bab4d7ff34f96d613883b927ff, type: 3}
   _NutHolder: {fileID: 9179207917088002269}
   _CapEndPositionHolder: {fileID: 853116510389830599}
   _Cap: {fileID: 3729121736853820763}
-  topPositionHolder: {fileID: 7650305205542993460}
+  _TopPositionHolder: {fileID: 7650305205542993460}
   _BoltInteraction: {fileID: 3793118465356335397}
 --- !u!82 &7416811124747693750
 AudioSource:
