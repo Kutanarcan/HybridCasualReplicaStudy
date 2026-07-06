@@ -73,7 +73,7 @@ namespace ReplicaProjects.MagicSort
             if (!_isSolvedLevel)
                 return;
 
-            DOVirtual.DelayedCall(1.5f, () =>
+            DOVirtual.DelayedCall(2f, () =>
             {
                 _inGameUI.Hide();
                 _endScreenPresentation.SetState(true);

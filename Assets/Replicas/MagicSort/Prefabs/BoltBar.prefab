@@ -411,8 +411,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   _Up: {fileID: 8300000, guid: 166b33ac03184ca44b2bd32bf684995f, type: 3}
-  _Intro: {fileID: 8300000, guid: 9dd3d9c498f921545b44b54785cd9221, type: 3}
-  _Down: {fileID: 8300000, guid: 9dd3d9c498f921545b44b54785cd9221, type: 3}
+  _Down: {fileID: 8300000, guid: b135152c7030c7440b04db2c1ef2cba1, type: 3}
+  _CapWin: {fileID: 8300000, guid: 833fdb26ee4ab60438c95e932992d547, type: 3}
+  _NutSeat: {fileID: 8300000, guid: 8c0db90acaf52d849b94c04b7a08616f, type: 3}
   _AudioSource: {fileID: 7416811124747693750}
   _NutPrefab: {fileID: 4550658439133935838, guid: f16ac6bab4d7ff34f96d613883b927ff, type: 3}
   _NutHolder: {fileID: 9179207917088002269}

@@ -11,6 +11,8 @@ namespace ReplicaProjects.MagicSort
 
         [SerializeField] private AudioClip _Up;
         [SerializeField] private AudioClip _Down;
+        [SerializeField] private AudioClip _CapWin;
+        [SerializeField] private AudioClip _NutSeat;
         [SerializeField] private AudioSource _AudioSource;
 
         [SerializeField] private GameObject _NutPrefab;
@@ -162,6 +164,10 @@ namespace ReplicaProjects.MagicSort
                     }))
                 .Append(nut.transform.DOLocalMove(nutSlotPosition, 0.35f).SetEase(Ease.Linear))
                 .Join(nut.transform.DORotate(new Vector3(0, 360, 0), 0.35f, RotateMode.FastBeyond360))
+                 .OnComplete(() =>
+                 {
+                     _AudioSource.PlayOneShot(_NutSeat);
+                 })
                 .SetId(nut)
                 .SetLink(nut, LinkBehaviour.KillOnDisable);
 
@@ -175,9 +181,14 @@ namespace ReplicaProjects.MagicSort
             return DOTween.Sequence()
                 .Append(_Cap.transform.DOJump(_CapEndPositionHolder.position, 1f, 1, 0.4f).SetEase(Ease.Linear))
                 .Join(_Cap.transform.DOLocalRotate(new Vector3(90, 0, 0), 0.25f, RotateMode.FastBeyond360))
+                   .OnComplete(() =>
+                   {
+                       _AudioSource.PlayOneShot(_CapWin);
+                   })
                 .Append(_Cap.transform.DOPunchScale(Vector3.one * 0.15f, 0.2f, 1))
                 .SetId(_Cap)
                 .SetLink(_Cap, LinkBehaviour.KillOnDisable);
+
         }
 
         public void MoveNutDeSelectedAnimation(GameObject nut)
@@ -190,10 +201,14 @@ namespace ReplicaProjects.MagicSort
             _AudioSource.PlayOneShot(_Down);
 
             DOTween.Sequence()
-                .Append(nut.transform.DOLocalMove(pos, DESELECT_MOVE_DURATION).SetEase(Ease.Linear))
-                .Join(nut.transform.DORotate(new Vector3(0, 360, 0), DESELECT_ROTATE_DURATION, RotateMode.FastBeyond360))
-                .SetId(nut)
-                .SetLink(nut, LinkBehaviour.KillOnDisable);
+                 .Append(nut.transform.DOLocalMove(pos, DESELECT_MOVE_DURATION).SetEase(Ease.Linear))
+                 .Join(nut.transform.DORotate(new Vector3(0, 360, 0), DESELECT_ROTATE_DURATION, RotateMode.FastBeyond360))
+                 .InsertCallback(DESELECT_ROTATE_DURATION - 0.1f, () =>
+                 {
+                     _AudioSource.PlayOneShot(_NutSeat);
+                 })
+                 .SetId(nut)
+                 .SetLink(nut, LinkBehaviour.KillOnDisable);
         }
 
         public void MoveNutSelectedAnimation(GameObject nut)
