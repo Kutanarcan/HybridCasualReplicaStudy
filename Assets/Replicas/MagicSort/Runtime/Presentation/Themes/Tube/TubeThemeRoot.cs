@@ -102,7 +102,7 @@ namespace ReplicaProjects.MagicSort
 
         public void ShowSolved(int bar, bool animated)
         {
-            // Solved animasyonu henüz yok.
+            _views[bar].PlaySolvedSound();
         }
 
         private void OnBarViewClicked(int index) => BarTapped?.Invoke(index);

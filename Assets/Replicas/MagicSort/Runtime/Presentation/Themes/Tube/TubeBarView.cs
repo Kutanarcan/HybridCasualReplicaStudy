@@ -7,6 +7,12 @@ namespace ReplicaProjects.MagicSort
 {
     public class TubeBarView : MonoBehaviour, DiscreteItemBoard.IItemAnimator
     {
+        [SerializeField] private AudioClip _Appear;
+        [SerializeField] private AudioClip _Up;
+        [SerializeField] private AudioClip _Down;
+        [SerializeField] private AudioClip _Win;
+        [SerializeField] private AudioSource _AudioSource;
+
         [SerializeField] private GameObject _BallPrefab;
         [SerializeField] private Transform _BallHolder;
         [SerializeField] private Transform _TopPositionHolder;
@@ -71,6 +77,11 @@ namespace ReplicaProjects.MagicSort
             return items;
         }
 
+        public void PlaySolvedSound()
+        {
+            _AudioSource.PlayOneShot(_Win);
+        }
+
         private void OnPointerDown() => Clicked?.Invoke();
 
         /// <summary>items: alttan üste sırayla (Setup'ın döndürdüğü sıra). Toplar yerinde scale-in olur.</summary>
@@ -113,7 +124,11 @@ namespace ReplicaProjects.MagicSort
                 .SetDelay(delay)
                 .Append(item.transform.DOLocalMove(sourceLocalTarget, topMovementDelay).SetEase(Ease.Linear))
                 .Append(item.transform.DOLocalMove(localTarget, 0.1f).SetEase(Ease.Linear))
-                .Append(item.transform.DOLocalMove(ballSlotPosition, 0.1f).SetEase(Ease.Linear))
+                .Append(item.transform.DOLocalMove(ballSlotPosition, 0.1f).SetEase(Ease.Linear)
+                 .OnComplete(() =>
+                 {
+                     _AudioSource.PlayOneShot(_Down);
+                 }))
                 .SetId(item)
                 .SetLink(item, LinkBehaviour.KillOnDisable);
 
@@ -128,6 +143,10 @@ namespace ReplicaProjects.MagicSort
 
             DOTween.Sequence()
                 .Append(item.transform.DOLocalMove(localTarget, SELECT_MOVE_DURATION).SetEase(Ease.Linear))
+                   .OnComplete(() =>
+                   {
+                       _AudioSource.PlayOneShot(_Up);
+                   })
                 .SetId(item)
                 .SetLink(item, LinkBehaviour.KillOnDisable);
         }
@@ -140,6 +159,10 @@ namespace ReplicaProjects.MagicSort
 
             DOTween.Sequence()
                 .Append(item.transform.DOLocalMove(pos, DESELECT_MOVE_DURATION).SetEase(Ease.OutBounce))
+                   .OnComplete(() =>
+                   {
+                       _AudioSource.PlayOneShot(_Down);
+                   })
                 .SetId(item)
                 .SetLink(item, LinkBehaviour.KillOnDisable);
         }
