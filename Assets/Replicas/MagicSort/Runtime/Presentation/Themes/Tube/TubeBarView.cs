@@ -30,6 +30,8 @@ namespace ReplicaProjects.MagicSort
         private const float INTRO_SETTLE_STRENGTH = 0.2f;   // base scale'e oranla punch şiddeti
         private const float SELECT_MOVE_DURATION = 0.1f;
         private const float DESELECT_MOVE_DURATION = 0.2f;   // slota düşüp sert duvara çarpmış gibi zıplayarak oturur (OutBounce)
+        private const float MOVE_SLOT_DURATION = 0.1f;       // taşınan topların hızlı, düz oturması
+        private const float MOVE_SETTLE_DURATION = 0.25f;    // grubun SON topu: OutBounce ile oturur
 
         private List<Color> _palette;
         private Vector3 _ballBaseScale = Vector3.one;
@@ -109,7 +111,7 @@ namespace ReplicaProjects.MagicSort
         }
 
         // DiscreteItemBoard.IItemAnimator
-        public Sequence MoveItem(GameObject item, int targetBar, int targetSlot, Vector3 sourceTopWorldPos, float delay)
+        public Sequence MoveItem(GameObject item, int targetBar, int targetSlot, Vector3 sourceTopWorldPos, float delay, bool isLast)
         {
             DOTween.Kill(item);
 
@@ -120,11 +122,15 @@ namespace ReplicaProjects.MagicSort
             var localTarget = item.transform.parent.InverseTransformPoint(_TopPositionHolder.position);
             var topMovementDelay = delay > 0 ? 0.15f : 0.05f;
 
+            // Grubun son (en üstteki) topu slota zıplayarak oturur; diğerleri hızlı ve düz.
+            float slotDuration = isLast ? MOVE_SETTLE_DURATION : MOVE_SLOT_DURATION;
+            Ease slotEase = isLast ? Ease.OutBounce : Ease.Linear;
+
             var sequence = DOTween.Sequence()
                 .SetDelay(delay)
                 .Append(item.transform.DOLocalMove(sourceLocalTarget, topMovementDelay).SetEase(Ease.Linear))
                 .Append(item.transform.DOLocalMove(localTarget, 0.1f).SetEase(Ease.Linear))
-                .Append(item.transform.DOLocalMove(ballSlotPosition, 0.1f).SetEase(Ease.Linear)
+                .Append(item.transform.DOLocalMove(ballSlotPosition, slotDuration).SetEase(slotEase)
                  .OnComplete(() =>
                  {
                      _AudioSource.PlayOneShot(_Down);

@@ -26,14 +26,6 @@ namespace ReplicaProjects.MagicSort
             Initialize();
         }
 
-        private void Update()
-        {
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-            if (Input.GetKeyDown(KeyCode.T))
-                SwitchTheme();
-#endif
-        }
-
         private void Create()
         {
             var endScreenPresentationPrefab = MagicSortReplicaAssetDatabase.EndScreenPresentationPrefab;
@@ -50,6 +42,11 @@ namespace ReplicaProjects.MagicSort
             _themes.BarTapped += OnBarTapped;
 
             LoadLevel(_currentLevelIndex);
+        }
+
+        private void OnSwitchThemeButtonClicked()
+        {
+            SwitchTheme();
         }
 
         private void OnRestartLevelButtonClicked()
@@ -74,7 +71,8 @@ namespace ReplicaProjects.MagicSort
             Build(_orchestrator.GetBoard());
 
             _endScreenPresentation.InteractionButtonPressed += OnEndGameButtonPressed;
-            _inGameUI.InteractionButtonPressed += OnRestartLevelButtonClicked;
+            _inGameUI.RestartLevelButtonPressed += OnRestartLevelButtonClicked;
+            _inGameUI.RestartSwitchThemePressed += OnSwitchThemeButtonClicked;
         }
 
         private void TryToCallEndGame()
@@ -92,7 +90,8 @@ namespace ReplicaProjects.MagicSort
         private void ReloadLevel(int index)
         {
             _endScreenPresentation.InteractionButtonPressed -= OnEndGameButtonPressed;
-            _inGameUI.InteractionButtonPressed -= OnRestartLevelButtonClicked;
+            _inGameUI.RestartLevelButtonPressed -= OnRestartLevelButtonClicked;
+            _inGameUI.RestartSwitchThemePressed -= OnSwitchThemeButtonClicked;
 
             _presentation.Teardown();
             LoadLevel(index);

@@ -5,25 +5,35 @@ namespace ReplicaProjects.MagicSort
 {
     public class InGameUI : MonoBehaviour
     {
-        public event System.Action InteractionButtonPressed;
+        public event System.Action RestartLevelButtonPressed;
+        public event System.Action RestartSwitchThemePressed;
 
         [SerializeField] private Canvas _Canvas;
-        [SerializeField] private Button _InteractionButton;
+        [SerializeField] private Button _RestartButton;
+        [SerializeField] private Button _SwitchThemeButton;
 
         private void Awake()
         {
-            _InteractionButton.onClick.AddListener(OnInteractionButtonPressed);
+            _RestartButton.onClick.AddListener(OnRestartLevelButtonPressed);
+            _SwitchThemeButton.onClick.AddListener(OnSwitchThemeButtonPressed);
         }
 
-        private void OnInteractionButtonPressed()
+        private void OnRestartLevelButtonPressed()
         {
-            InteractionButtonPressed?.Invoke();
+            RestartLevelButtonPressed?.Invoke();
+        }
+
+        private void OnSwitchThemeButtonPressed()
+        {
+            RestartSwitchThemePressed?.Invoke();
         }
 
         private void OnDestroy()
         {
-            _InteractionButton.onClick.RemoveAllListeners();
+            _RestartButton.onClick.RemoveAllListeners();
+            _SwitchThemeButton.onClick.RemoveAllListeners();
         }
+
         public void Show() => _Canvas.enabled = true;
         public void Hide() => _Canvas.enabled = false;
 

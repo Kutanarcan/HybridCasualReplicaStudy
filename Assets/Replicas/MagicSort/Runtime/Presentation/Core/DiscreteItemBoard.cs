@@ -15,7 +15,7 @@ namespace ReplicaProjects.MagicSort
         {
             // Tema, tek bir objenin nasıl uçacağını tanımlar; sıralamayı motor yönetir.
             Sequence MoveItem(GameObject item, int targetBar, int targetSlot,
-                              Vector3 sourceTopWorldPos, float delay);
+                              Vector3 sourceTopWorldPos, float delay, bool isLast);
             void Selected(GameObject item);
             void Deselected(GameObject item);
         }
@@ -54,7 +54,8 @@ namespace ReplicaProjects.MagicSort
                 if (!_stacks[cmd.SourceBar].TryPop(out var item)) break;
                 _stacks[cmd.TargetBar].Push(item);
                 int slot = _stacks[cmd.TargetBar].Count - 1;
-                last = _animator.MoveItem(item, cmd.TargetBar, slot, sourceTopWorldPos, STAGGER * i);
+                bool isLast = i == cmd.MovedCount - 1;
+                last = _animator.MoveItem(item, cmd.TargetBar, slot, sourceTopWorldPos, STAGGER * i, isLast);
             }
             if (last != null) last.OnComplete(() => onComplete());
             else onComplete();

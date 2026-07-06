@@ -19,8 +19,8 @@ namespace ReplicaProjects.MagicSort
         private const int MAX_COLUMNS = 3;
 
         private const float BAR_VISUAL_HEIGHT = 2.5F; // somun yığını + kapak için üst pay
-        private const float CAMERA_PAD_X = 1.0F;
-        private const float CAMERA_PAD_Y = 0.75F;
+        private const float CAMERA_PAD_X = 2F;
+        private const float CAMERA_PAD_Y = 2F;
 
         public readonly Vector3 Offset = new Vector3(X_OFFSET, ROW_Y_OFFSET, ROW_Z_OFFSET);
 
@@ -117,8 +117,8 @@ namespace ReplicaProjects.MagicSort
 
         // DiscreteItemBoard.IItemAnimator: her item kendi bar view'ının içinde yaşar,
         // bu yüzden hedef bar view'a devredilir.
-        public Sequence MoveItem(GameObject item, int targetBar, int targetSlot, Vector3 sourceTopWorldPos, float delay)
-            => _views[targetBar].MoveItem(item, targetBar, targetSlot, sourceTopWorldPos, delay);
+        public Sequence MoveItem(GameObject item, int targetBar, int targetSlot, Vector3 sourceTopWorldPos, float delay, bool isLast)
+            => _views[targetBar].MoveItem(item, targetBar, targetSlot, sourceTopWorldPos, delay, isLast);
 
         public void Selected(GameObject item) => item.GetComponentInParent<BoltBarView>().Selected(item);
         public void Deselected(GameObject item) => item.GetComponentInParent<BoltBarView>().Deselected(item);

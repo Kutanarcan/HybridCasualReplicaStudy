@@ -194,7 +194,8 @@ namespace ReplicaProjects.MagicSort
         }
 
         // DiscreteItemBoard.IItemAnimator
-        public Sequence MoveItem(GameObject item, int targetBar, int targetSlot, Vector3 sourceTopWorldPos, float delay)
+        // isLast: Bolt kendi koreografisini korur, bayrağı kullanmaz.
+        public Sequence MoveItem(GameObject item, int targetBar, int targetSlot, Vector3 sourceTopWorldPos, float delay, bool isLast)
             => MoveItemToSlotAnimation(item, sourceTopWorldPos, targetSlot, delay);
 
         public void Selected(GameObject item)

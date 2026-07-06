@@ -109,8 +109,8 @@ namespace ReplicaProjects.MagicSort
 
         // DiscreteItemBoard.IItemAnimator: her top kendi bar view'ının içinde yaşar,
         // bu yüzden hedef bar view'a devredilir.
-        public Sequence MoveItem(GameObject item, int targetBar, int targetSlot, Vector3 sourceTopWorldPos, float delay)
-            => _views[targetBar].MoveItem(item, targetBar, targetSlot, sourceTopWorldPos, delay);
+        public Sequence MoveItem(GameObject item, int targetBar, int targetSlot, Vector3 sourceTopWorldPos, float delay, bool isLast)
+            => _views[targetBar].MoveItem(item, targetBar, targetSlot, sourceTopWorldPos, delay, isLast);
 
         public void Selected(GameObject item) => item.GetComponentInParent<TubeBarView>().Selected(item);
         public void Deselected(GameObject item) => item.GetComponentInParent<TubeBarView>().Deselected(item);
