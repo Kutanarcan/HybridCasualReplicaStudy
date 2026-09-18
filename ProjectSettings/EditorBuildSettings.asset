@@ -6,6 +6,6 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
-    path: Assets/Replicas/MagicSort/MagicSortReplica.unity
+    path: Assets/Replicas/MagicSort/SortReplica.unity
     guid: e0aca251d641c474fa6b8407e24a98f8
   m_configObjects: {}

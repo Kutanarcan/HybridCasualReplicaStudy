@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace ReplicaProjects.MagicSort
 {
-    public interface IMagicSortTheme
+    public interface ISortTheme
     {
         /// Tema kendi input yöntemiyle (UI raycast, collider, physics) tıklamayı
         /// yakalar ve bar index olarak raporlar. Core, kaynağını bilmez.

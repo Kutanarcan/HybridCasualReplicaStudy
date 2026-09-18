@@ -10,11 +10,11 @@ namespace ReplicaProjects.MagicSort
     /// Tema değişiminde kamera, cache'lenen başlangıç pozuna resetlenir
     /// (FitCamera göreli += kaydırma yaptığı için şart).
     /// </summary>
-    public class MagicSortThemeManager
+    public class SortThemeManager
     {
         public event Action<int> BarTapped;
 
-        private readonly List<IMagicSortTheme> _themes = new();
+        private readonly List<ISortTheme> _themes = new();
         private readonly List<GameObject> _themeObjects = new();
         private int _activeIndex;
 
@@ -22,16 +22,16 @@ namespace ReplicaProjects.MagicSort
         private Quaternion _cameraInitialRotation;
         private float _cameraInitialOrthoSize;
 
-        public IMagicSortTheme Active => _themes[_activeIndex];
+        public ISortTheme Active => _themes[_activeIndex];
 
-        public MagicSortThemeManager(IReadOnlyList<GameObject> themePrefabs)
+        public SortThemeManager(IReadOnlyList<GameObject> themePrefabs)
         {
             CacheCameraDefaults();
 
             for (int i = 0; i < themePrefabs.Count; i++)
             {
                 var instance = Object.Instantiate(themePrefabs[i]);
-                var theme = instance.GetComponent<IMagicSortTheme>();
+                var theme = instance.GetComponent<ISortTheme>();
                 theme.BarTapped += OnBarTapped;
                 instance.SetActive(i == _activeIndex);
 
@@ -40,7 +40,7 @@ namespace ReplicaProjects.MagicSort
             }
         }
 
-        public IMagicSortTheme ActivateNext()
+        public ISortTheme ActivateNext()
         {
             Active.Teardown();
             _themeObjects[_activeIndex].SetActive(false);

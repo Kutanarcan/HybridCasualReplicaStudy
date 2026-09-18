@@ -6,7 +6,7 @@ using UnityEngine.Serialization;
 
 namespace ReplicaProjects.MagicSort
 {
-    public class BoltThemeRoot : MonoBehaviour, IMagicSortTheme, DiscreteItemBoard.IItemAnimator
+    public class BoltThemeRoot : MonoBehaviour, ISortTheme, DiscreteItemBoard.IItemAnimator
     {
         public event Action<int> BarTapped;
 

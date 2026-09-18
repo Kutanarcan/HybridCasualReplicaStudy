@@ -12,7 +12,7 @@ namespace ReplicaProjects.MagicSort
 
         private EndScreenPresentation _endScreenPresentation;
         private InGameUI _inGameUI;
-        private MagicSortThemeManager _themes;
+        private SortThemeManager _themes;
         private PresentationCore _presentation;
         private readonly MagicSortOrchestrator _orchestrator = new();
 
@@ -31,7 +31,7 @@ namespace ReplicaProjects.MagicSort
             var endScreenPresentationPrefab = MagicSortReplicaAssetDatabase.EndScreenPresentationPrefab;
             var _inGameUIPrefab = MagicSortReplicaAssetDatabase.InGameUIPrefab;
 
-            _themes = new MagicSortThemeManager(MagicSortReplicaAssetDatabase.ThemePrefabs);
+            _themes = new SortThemeManager(MagicSortReplicaAssetDatabase.ThemePrefabs);
             _presentation = new PresentationCore(_themes.Active);
             _endScreenPresentation = Instantiate(endScreenPresentationPrefab);
             _inGameUI = Instantiate(_inGameUIPrefab);

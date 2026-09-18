@@ -8,11 +8,11 @@ namespace ReplicaProjects.MagicSort
     /// </summary>
     public sealed class PresentationCore
     {
-        private readonly IMagicSortTheme _theme;
+        private readonly ISortTheme _theme;
         private bool _inputLocked;
         private int _barHeight;
 
-        public PresentationCore(IMagicSortTheme theme) => _theme = theme;
+        public PresentationCore(ISortTheme theme) => _theme = theme;
 
         public bool InputLocked => _inputLocked;
 

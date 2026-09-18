@@ -5,7 +5,7 @@ using UnityEngine;
 
 namespace ReplicaProjects.MagicSort
 {
-    public class TubeThemeRoot : MonoBehaviour, IMagicSortTheme, DiscreteItemBoard.IItemAnimator
+    public class TubeThemeRoot : MonoBehaviour, ISortTheme, DiscreteItemBoard.IItemAnimator
     {
         public event Action<int> BarTapped;
 
