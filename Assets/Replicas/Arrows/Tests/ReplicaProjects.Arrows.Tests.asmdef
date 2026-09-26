@@ -1,7 +1,11 @@
 {
     "name": "ReplicaProjects.Arrows.Tests",
+    "rootNamespace": "ReplicaProjects.Arrows.Tests",
     "references": [
+        "ReplicaProjects.Arrows.Core",
         "ReplicaProjects.Arrows",
+        "ReplicaProjects.Common.Core",
+        "ReplicaProjects.Common.TestSupport",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],

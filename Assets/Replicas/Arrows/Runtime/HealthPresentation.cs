@@ -47,10 +47,10 @@ namespace ReplicaProjects.Arrows
         {
             for (int i = 0; i < amount; i++)
             {
-                var healtImage = Instantiate(_HealthImagePrefab, _HealthImageContainer);
+                var healthImage = Instantiate(_HealthImagePrefab, _HealthImageContainer);
 
-                healtImage.color = Color.red;
-                _healthImageList.Add(healtImage);
+                healthImage.color = Color.red;
+                _healthImageList.Add(healthImage);
             }
         }
     }

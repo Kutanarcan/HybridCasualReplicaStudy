@@ -1,7 +1,11 @@
 {
     "name": "ReplicaProjects.Arrows.Editor",
+    "rootNamespace": "ReplicaProjects.Arrows.EditorTools",
     "references": [
-        "ReplicaProjects.Arrows"
+        "ReplicaProjects.Arrows",
+        "ReplicaProjects.Arrows.Core",
+        "ReplicaProjects.Common.Core",
+        "ReplicaProjects.Common.Editor"
     ],
     "includePlatforms": [
         "Editor"

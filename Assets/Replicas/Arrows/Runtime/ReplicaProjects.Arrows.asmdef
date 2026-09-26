@@ -1,7 +1,10 @@
 {
     "name": "ReplicaProjects.Arrows",
+    "rootNamespace": "ReplicaProjects.Arrows",
     "references": [
-        "ReplicaProjects.Common"
+        "ReplicaProjects.Common",
+        "ReplicaProjects.Common.Core",
+        "ReplicaProjects.Arrows.Core"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

@@ -1,10 +1,8 @@
-using UnityEngine;
-
 namespace ReplicaProjects.Arrows
 {
     public struct BoardCornerEvaluateInput
     {
-        public Vector2Int coordinates;
+        public GridCoord coordinates;
         public int width;
         public int height;
     }

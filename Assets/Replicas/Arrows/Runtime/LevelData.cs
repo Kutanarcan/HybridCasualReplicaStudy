@@ -3,24 +3,6 @@ using UnityEngine;
 
 namespace ReplicaProjects.Arrows
 {
-    [System.Serializable]
-    public struct LineCell
-    {
-        public Vector2Int coordinates;
-        public Direction direction; // flow from the previous cell into this one (head -> tail)
-    }
-
-    [System.Serializable]
-    public struct HeadData
-    {
-        public Vector2Int coordinates;
-        public Direction direction;
-
-        // Ordered head -> tail, EXCLUDES the head cell. Valid levels require >= 1 entry.
-        // null/empty is tolerated for legacy assets.
-        public List<LineCell> line;
-    }
-
     [CreateAssetMenu(menuName = "Arrows/Level Data")]
     public class LevelData : ScriptableObject
     {

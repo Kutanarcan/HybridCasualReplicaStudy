@@ -1,0 +1,16 @@
+{
+    "name": "ReplicaProjects.Arrows.Core",
+    "rootNamespace": "ReplicaProjects.Arrows",
+    "references": [
+        "ReplicaProjects.Common.Core"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": true
+}

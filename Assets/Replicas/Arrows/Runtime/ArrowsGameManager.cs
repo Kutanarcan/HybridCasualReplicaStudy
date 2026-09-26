@@ -1,190 +1,121 @@
 using System.Collections.Generic;
-using UnityEngine;
 using ReplicaProjects.Common;
+using UnityEngine;
 
 namespace ReplicaProjects.Arrows
 {
-    public class GameManager : MonoBehaviour
+    /// <summary>Composition root: builds the Core session and controls, wires them to the Unity views.</summary>
+    public class ArrowsGameManager : MonoBehaviour, IArrowsView
     {
         [SerializeField] private List<LevelData> _levelDataList;
 
-        private int width, height;
+        private const int MAX_HEALTH = 3;
+        private const float NODE_HIT_DIAMETER = 1.1f;
+        private const float DRAG_THRESHOLD_PIXELS = 10f;
 
-        private readonly BoardController _boardController = new();
-        private readonly HealthOrchestrator _healthOrchestrator = new();
+        private readonly ArrowsSession _session = new();
+        private readonly TickGroup _ticks = new();
+        private LevelCursor _levels;
+        private CameraRig _cameraRig;
 
         private BoardPresentation _boardPresentation;
         private HealthPresentation _healthPresentation;
         private EndScreenPresentation _endScreenPresentation;
-
-        private Selection _selection;
         private CameraController _cameraController;
         private AudioSource _audioSource;
         private AudioClip _selectionSFX;
-
-        private const int MAX_HEALTH = 3;
-        private bool isFinished = false;
-
-        private int _currentLevel = 0;
-        private LevelData _level;
 
         private void Awake()
         {
             Application.targetFrameRate = 60;
 
             Create();
-            Initialize();
-            InitializePresentation();
+            Wire();
+            StartLevel();
         }
+
+        private void Update() => _ticks.Tick(Time.deltaTime);
 
         private void Create()
         {
-            var boardPresentationPrefab = ArrowsReplicaAssetDatabase.BoardPresentationPrefab;
-            var healthPresentationPrefab = ArrowsReplicaAssetDatabase.HealthPresentationPrefab;
-            var endScreenPresentationPrefab = ArrowsReplicaAssetDatabase.EndScreenPresentationPrefab;
+            _levels = new LevelCursor(_levelDataList.Count);
             _selectionSFX = ArrowsReplicaAssetDatabase.SFX_Selection;
 
-            _boardPresentation = Instantiate(boardPresentationPrefab);
-            _healthPresentation = Instantiate(healthPresentationPrefab);
-            _endScreenPresentation = Instantiate(endScreenPresentationPrefab);
-
-            _cameraController = gameObject.AddComponent<CameraController>();
+            _boardPresentation = Instantiate(ArrowsReplicaAssetDatabase.BoardPresentationPrefab);
+            _healthPresentation = Instantiate(ArrowsReplicaAssetDatabase.HealthPresentationPrefab);
+            _endScreenPresentation = Instantiate(ArrowsReplicaAssetDatabase.EndScreenPresentationPrefab);
             _audioSource = gameObject.AddComponent<AudioSource>();
 
-            _selection = gameObject.AddComponent<Selection>();
-            _selection.Initialize(Camera.main);
+            var camera = Camera.main;
+            var input = new UnityInputSource();
+            var viewport = new CameraViewport(camera);
+
+            var tapDetector = new TapDetector(input, viewport, new CellPicker(NODE_HIT_DIAMETER), DRAG_THRESHOLD_PIXELS);
+            tapDetector.CellTapped += OnCellTapped;
+            _cameraRig = new CameraRig(input, viewport, new CameraRigSettings());
+
+            _ticks.Add(tapDetector);
+            _ticks.Add(_cameraRig);
+
+            _cameraController = gameObject.AddComponent<CameraController>();
+            _cameraController.Initialize(camera, _cameraRig);
         }
 
-        private void Initialize()
+        private void Wire()
         {
-            _level = _levelDataList[_currentLevel];
-
-            width = _level.width;
-            height = _level.height;
-
-            _boardController.Initialize(_level);
-            _healthOrchestrator.Initialize(MAX_HEALTH);
-            _cameraController.Initialize(Camera.main, width, height);
-            _healthOrchestrator.Died += OnFinishedWithDefeat;
-            _boardPresentation.AnimationFinished += OnAnyArrowHeadAnimationFinished;
-            _boardController.Board.NoHeadLeft += OnFinishedWithVictory;
+            _session.Won += OnWon;
+            _session.Lost += OnLost;
             _endScreenPresentation.InteractionButtonPressed += OnEndGameButtonPressed;
-
-            _selection.OnNodeSelected += OnNodeSelected;
         }
 
-        private void DeInitialize()
+        private void StartLevel()
         {
-            _selection.OnNodeSelected -= OnNodeSelected;
+            var level = _levelDataList[_levels.Current];
 
-            _healthOrchestrator.Died -= OnFinishedWithDefeat;
-            _boardController.Board.NoHeadLeft -= OnFinishedWithVictory;
-            _endScreenPresentation.InteractionButtonPressed -= OnEndGameButtonPressed;
-            _boardPresentation.AnimationFinished -= OnAnyArrowHeadAnimationFinished;
+            _session.Start(level.width, level.height, level.heads, MAX_HEALTH);
+            _cameraRig.Frame(level.width, level.height);
+            _boardPresentation.Initialize(_session.Board.Heads);
+            _healthPresentation.Initialize(_session.Health);
+        }
 
-            _boardController.DeInitialize();
-            _healthOrchestrator.DeInitialize();
+        private void StopLevel()
+        {
+            _boardPresentation.AnimationFinished -= ShowVictory;
             _cameraController.DeInitialize();
             _boardPresentation.DeInitialize();
             _healthPresentation.DeInitialize();
         }
 
-        private void OnEndGameButtonPressed()
-        {
-            DeInitialize();
-            Initialize();
-            InitializePresentation();
-            isFinished = false;
-        }
-
-        private void OnFinishedWithDefeat()
-        {
-            isFinished = true;
-            _endScreenPresentation.SetState(false);
-        }
-
-        private void OnFinishedWithVictory()
-        {
-            isFinished = true;
-            _currentLevel = (_currentLevel + 1) % _levelDataList.Count;
-        }
-
-        private void OnAnyArrowHeadAnimationFinished()
-        {
-            if (!isFinished)
-                return;
-
-            _endScreenPresentation.SetState(true);
-        }
-
-        private void InitializePresentation()
-        {
-            var arrowDataList = new List<ArrowPresentationData>();
-            var board = _boardController.Board;
-            var grid = _boardController.Grid;
-
-            foreach (var headIndex in board.dataArrays.headIndexArray)
-            {
-                var headCoord = grid.IndexToCoordinates(headIndex);
-                var line = new List<LineCell>();
-
-                int[] lineChunk = board.GetLineChuck(headIndex);
-                if (lineChunk != null)
-                {
-                    foreach (var chunkIndex in lineChunk)
-                    {
-                        line.Add(new LineCell
-                        {
-                            coordinates = grid.IndexToCoordinates(chunkIndex),
-                            direction = board.dataArrays.directionArray[chunkIndex]
-                        });
-                    }
-                }
-
-                arrowDataList.Add(new ArrowPresentationData()
-                {
-                    headCoordinates = headCoord,
-                    headDirection = board.dataArrays.directionArray[headIndex],
-                    line = line
-                });
-            }
-
-            _boardPresentation.Initialize(arrowDataList);
-            _healthPresentation.Initialize(_healthOrchestrator.currentHealth);
-
-        }
-
-        private void OnNodeSelected(Vector2Int coordinates)
+        private void OnCellTapped(GridCoord cell)
         {
             _audioSource.PlayOneShot(_selectionSFX);
+            _session.Tap(cell).ApplyTo(this);
+        }
 
-            if (isFinished)
-                return;
+        // Victory waits for the last arrow's exit animation.
+        private void OnWon()
+        {
+            _levels.Advance();
+            _boardPresentation.AnimationFinished += ShowVictory;
+        }
 
-            if (coordinates.x < 0 || coordinates.x >= width ||
-                coordinates.y < 0 || coordinates.y >= height)
-                return;
+        private void OnLost() => _endScreenPresentation.SetState(false);
 
-            if (_boardController.IsEmpty(coordinates))
-                return;
+        private void ShowVictory() => _endScreenPresentation.SetState(true);
 
-            // A tapped cell may be a head OR any of its line cells; both resolve to the same head.
-            var headCoord = _boardController.GetHeadCoordinate(coordinates);
+        private void OnEndGameButtonPressed()
+        {
+            StopLevel();
+            StartLevel();
+        }
 
-            if (_boardController.IsPathClear(coordinates))
-            {
-                _boardController.RemoveAtCoordinate(coordinates);
-                _boardPresentation.EmptyArrow(headCoord);
-            }
-            else
-            {
-                var blocker = _boardController.GetForwardBlocker(coordinates);
-                _boardPresentation.BumpArrow(headCoord, blocker);
-                _cameraController.Shake();
+        void IArrowsView.ShowRemoved(GridCoord head) => _boardPresentation.EmptyArrow(head);
 
-                _healthOrchestrator.DecreaseHealth();
-                _healthPresentation.SetHealthAmount(_healthOrchestrator.currentHealth);
-            }
+        void IArrowsView.ShowBlocked(GridCoord head, GridCoord blocker, int remainingHealth)
+        {
+            _boardPresentation.BumpArrow(head, blocker);
+            _cameraController.Shake();
+            _healthPresentation.SetHealthAmount(remainingHealth);
         }
     }
 }

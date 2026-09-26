@@ -1,23 +1,21 @@
-using UnityEngine;
+using System.Collections.Generic;
 
 namespace ReplicaProjects.Arrows
 {
+    /// <summary>Board queries and removal in grid coordinates, keeping occupancy and ownership in sync.</summary>
     public class BoardController
     {
         private readonly GridOrchestrator _grid = new();
         private readonly BoardOrchestrator _board = new();
 
-        public GridOrchestrator Grid => _grid;
-        public BoardOrchestrator Board => _board;
+        public IReadOnlyList<HeadData> Heads { get; private set; }
+        public int RemainingArrows => _board.RemainingCount;
 
-        public void Initialize(LevelData level)
+        public void Initialize(int width, int height, IReadOnlyList<HeadData> heads)
         {
-            _grid.Initialize(new GridOrchestratorModel
-            {
-                width = level.width,
-                height = level.height
-            });
-            _board.Initialize(level);
+            Heads = heads;
+            _grid.Initialize(width, height);
+            _board.Initialize(width, height, heads);
 
             PopulateOccupancy();
         }
@@ -26,81 +24,74 @@ namespace ReplicaProjects.Arrows
         {
             _board.DeInitialize();
             _grid.DeInitialize();
+            Heads = null;
         }
 
         private void PopulateOccupancy()
         {
             foreach (var headIndex in _board.dataArrays.headIndexArray)
-            {
-                SetOccupied(headIndex);
-
-                var chunk = _board.GetLineChuck(headIndex);
-                if (chunk == null)
-                    continue;
-
-                foreach (var chunkIndex in chunk)
-                    SetOccupied(chunkIndex);
-            }
+                SetChunk(headIndex, true);
         }
+
+        public bool IsEmpty(GridCoord coordinate) => _grid.IsEmpty(coordinate);
+        public bool IsInBounds(GridCoord coordinate) => _grid.IsInBounds(coordinate);
 
         // Resolves any clicked cell (head or line) to the coordinate of its owning head.
-        public Vector2Int GetHeadCoordinate(Vector2Int coordinates)
+        // Returns the input when the cell belongs to no arrow.
+        public GridCoord GetHeadCoordinate(GridCoord coordinates)
         {
-            int headIndex = _board.GetHeadIndex(_grid.CoordinatesToIndex(coordinates));
-            return _grid.IndexToCoordinates(headIndex);
+            int headIndex = HeadIndexAt(coordinates);
+            return headIndex < 0 ? coordinates : _grid.IndexToCoordinates(headIndex);
         }
 
-        public void RemoveAtCoordinate(Vector2Int coordinates)
+        public void RemoveAtCoordinate(GridCoord coordinates)
         {
-            int headIndex = _board.GetHeadIndex(_grid.CoordinatesToIndex(coordinates));
+            int headIndex = HeadIndexAt(coordinates);
             if (headIndex < 0)
                 return;
 
-            // Free the head cell.
-            var headCoord = _grid.IndexToCoordinates(headIndex);
-            _grid.Set(headCoord.x, headCoord.y, false);
-
-            // Free every line cell of the chunk.
-            var chunk = _board.GetLineChuck(headIndex);
-            if (chunk != null)
-                foreach (var lineIndex in chunk)
-                {
-                    var lineCoord = _grid.IndexToCoordinates(lineIndex);
-                    _grid.Set(lineCoord.x, lineCoord.y, false);
-                }
-
-            _board.RemoveChuck(headIndex);
+            SetChunk(headIndex, false);
+            _board.RemoveChunk(headIndex);
         }
 
-        private void SetOccupied(int index)
+        public bool IsPathClear(GridCoord coordinates)
         {
-            var coord = _grid.IndexToCoordinates(index);
-            _grid.Set(coord.x, coord.y, true);
-        }
-
-        public bool IsEmpty(Vector2Int coordinate) => _grid.IsEmpty(coordinate.x, coordinate.y);
-        public bool IsInBounds(Vector2Int coordinate) => _grid.IsInBounds(coordinate);
-
-        public bool IsPathClear(Vector2Int coordinates)
-        {
-            int headIndex = _board.GetHeadIndex(_grid.CoordinatesToIndex(coordinates));
+            int headIndex = HeadIndexAt(coordinates);
             if (headIndex < 0)
                 return false;
 
             // Check from the head, in the head's direction. The self line-of-sight rule guarantees
             // the arrow's own line is never in front of it, so no own-cell exclusion is needed.
             var headCoord = _grid.IndexToCoordinates(headIndex);
-            var direction = _board.dataArrays.directionArray[headIndex];
-            return _grid.IsPathClear(headCoord, direction);
+            return _grid.IsPathClear(headCoord, _board.dataArrays.directionArray[headIndex]);
         }
 
         // The first occupied cell in front of the tapped arrow's head (used by the wrong-answer bump).
-        public Vector2Int GetForwardBlocker(Vector2Int coordinates)
+        // Returns the input when the cell belongs to no arrow.
+        public GridCoord GetForwardBlocker(GridCoord coordinates)
         {
-            int headIndex = _board.GetHeadIndex(_grid.CoordinatesToIndex(coordinates));
+            int headIndex = HeadIndexAt(coordinates);
+            if (headIndex < 0)
+                return coordinates;
+
             var headCoord = _grid.IndexToCoordinates(headIndex);
-            var direction = _board.dataArrays.directionArray[headIndex];
-            return _grid.FirstBlocked(headCoord, direction);
+            return _grid.FirstBlocked(headCoord, _board.dataArrays.directionArray[headIndex]);
+        }
+
+        private int HeadIndexAt(GridCoord coordinates) =>
+            _grid.IsInBounds(coordinates) ? _board.GetHeadIndex(_grid.CoordinatesToIndex(coordinates)) : -1;
+
+        // Marks the head cell and every line cell of its chunk.
+        private void SetChunk(int headIndex, bool occupied)
+        {
+            _grid.Set(_grid.IndexToCoordinates(headIndex), occupied);
+
+            var chunk = _board.GetLineChunk(headIndex);
+            if (chunk == null)
+                return;
+
+            for (int i = 0; i < chunk.Length; i++)
+                _grid.Set(_grid.IndexToCoordinates(chunk[i]), occupied);
         }
     }
 }

@@ -12,6 +12,7 @@ namespace ReplicaProjects.Arrows
 
         private const float ExitMargin = 10f;
         private const float ExitDuration = 0.825f;
+        private const float FinishedNotifyDelay = 0.25f;
 
         // Wrong-answer bump: how far short of the blocker's centre the head stops, and the lunge/recoil
         // timings.
@@ -54,47 +55,31 @@ namespace ReplicaProjects.Arrows
 
         public void AnimateEmpty()
         {
-            var path = BuildExitPath(out var pathArc, out float totalLength);
-
-            float bodyLength = pathArc[_points.Length - 1];
-
-            _tween?.Kill();
+            var path = new ExitPath(_points, BoardSpace.ToWorldStep(_direction), ExitMargin);
+            float bodyLength = path.BodyLength;
             float headArc = bodyLength;
 
-            _tween = DOTween.To(() => headArc, x => headArc = x, totalLength + bodyLength, ExitDuration)
+            _tween?.Kill();
+            _tween = DOTween.To(() => headArc, x => headArc = x, path.TotalLength + bodyLength, ExitDuration)
                 .SetEase(Ease.InQuad)
-                .OnUpdate(() =>
-                {
-                    float headClamped = Mathf.Min(headArc, totalLength);
-                    float tailArc = Mathf.Max(0f, headArc - bodyLength);
-
-                    _buffer.Clear();
-                    _buffer.Add(SamplePath(path, pathArc, tailArc));
-
-                    // Pinned corners still inside the snake's window (strictly between the endpoints).
-                    for (int v = 0; v < path.Length; v++)
-                        if (pathArc[v] > tailArc && pathArc[v] < headClamped)
-                            _buffer.Add(path[v]);
-
-                    var headPoint = SamplePath(path, pathArc, headClamped);
-                    _buffer.Add(headPoint);
-
-                    _ChunkRenderer.positionCount = _buffer.Count;
-                    for (int i = 0; i < _buffer.Count; i++)
-                        _ChunkRenderer.SetPosition(i, _buffer[i]);
-
-                    transform.position = headPoint; // keep the head sprite riding the snake's nose
-                })
+                .OnUpdate(() => RenderWindow(path, Mathf.Max(0f, headArc - bodyLength), Mathf.Min(headArc, path.TotalLength)))
                 .OnComplete(() =>
                 {
                     gameObject.SetActive(false);
-
-                    DOVirtual.DelayedCall(0.25f, () =>
-                    {
-                        AnimationFinished?.Invoke();
-                    });
+                    DOVirtual.DelayedCall(FinishedNotifyDelay, () => AnimationFinished?.Invoke());
                 })
                 .SetLink(gameObject);
+        }
+
+        private void RenderWindow(ExitPath path, float tailArc, float headArc)
+        {
+            var headPoint = path.CollectWindow(tailArc, headArc, _buffer);
+
+            _ChunkRenderer.positionCount = _buffer.Count;
+            for (int i = 0; i < _buffer.Count; i++)
+                _ChunkRenderer.SetPosition(i, _buffer[i]);
+
+            transform.position = headPoint; // keep the head sprite riding the snake's nose
         }
 
         // Wrong-answer feedback: the head lunges along its direction up to the blocking cell, then
@@ -103,90 +88,39 @@ namespace ReplicaProjects.Arrows
         public void AnimateBump(Vector3 blockerPosition)
         {
             var origin = _points[0];
-            var step = (Vector3)(Vector2)_direction.ToVector2Int();
-            var contact = blockerPosition - step * ContactGap; // stop just short so the sprites touch
-
-            void Apply(Vector3 p)
-            {
-                transform.position = p;
-                _ChunkRenderer.SetPosition(0, p);
-            }
-
-            // t = 0 -> original colours, t = 1 -> full red (head sprite + body line).
-            void SetTint(float t)
-            {
-                if (_headRenderer != null)
-                    _headRenderer.color = Color.Lerp(_headColor, BumpColor, t);
-
-                var line = Color.Lerp(_lineColor, BumpColor, t);
-                _ChunkRenderer.startColor = line;
-                _ChunkRenderer.endColor = line;
-            }
+            var contact = blockerPosition - BoardSpace.ToWorldStep(_direction) * ContactGap; // stop just short so the sprites touch
 
             _tween?.Kill();
-            Apply(origin); // clear any leftover offset from an interrupted bump
-            SetTint(0f);   // and any leftover red
+            PlaceHead(origin); // clear any leftover offset from an interrupted bump
+            SetTint(0f);       // and any leftover red
 
             var pos = origin;
             float tint = 0f;
             _tween = DOTween.Sequence()
-                .Append(DOTween.To(() => pos, p => { pos = p; Apply(p); }, contact, BumpOutDuration)
+                .Append(DOTween.To(() => pos, p => { pos = p; PlaceHead(p); }, contact, BumpOutDuration)
                     .SetEase(Ease.OutQuad))
-                .Append(DOTween.To(() => pos, p => { pos = p; Apply(p); }, origin, BumpReturnDuration)
+                .Append(DOTween.To(() => pos, p => { pos = p; PlaceHead(p); }, origin, BumpReturnDuration)
                     .SetEase(Ease.OutBack))
                 // Flash to red on the lunge and hold it — a bumped arrow stays red afterwards.
                 .Insert(0f, DOTween.To(() => tint, x => { tint = x; SetTint(x); }, 1f, BumpOutDuration))
                 .SetLink(gameObject);
         }
 
-        // Returns the polyline (tail -> head -> exit), its per-vertex cumulative arc-lengths measured
-        // from the tail, and the total length.
-        private Vector3[] BuildExitPath(out float[] pathArc, out float totalLength)
+        private void PlaceHead(Vector3 position)
         {
-            int bodyCount = _points.Length;
-
-            // Reverse the body so the path runs tail -> head, matching travel order.
-            var reversed = new Vector3[bodyCount];
-            for (int i = 0; i < bodyCount; i++)
-                reversed[i] = _points[bodyCount - 1 - i];
-
-            var step = (Vector3)(Vector2)_direction.ToVector2Int();
-            var headPos = _points[0];
-            var exit = headPos + step * ExitMargin;
-
-            var path = new Vector3[bodyCount + 1];
-            System.Array.Copy(reversed, path, bodyCount);
-            path[bodyCount] = exit;
-
-            // Cumulative arc-length at each path vertex (index 0 = tail = 0).
-            pathArc = new float[path.Length];
-            for (int i = 1; i < path.Length; i++)
-                pathArc[i] = pathArc[i - 1] + Vector3.Distance(path[i - 1], path[i]);
-
-            totalLength = pathArc[^1];
-
-            return path;
+            transform.position = position;
+            _ChunkRenderer.SetPosition(0, position);
         }
 
-        // Samples a world position at the given arc-length along the path, clamped to its ends.
-        private static Vector3 SamplePath(Vector3[] path, float[] arc, float target)
+        // t = 0 -> original colours, t = 1 -> full red (head sprite + body line).
+        private void SetTint(float t)
         {
-            if (target <= 0f)
-                return path[0];
-            if (target >= arc[^1])
-                return path[^1];
+            if (_headRenderer != null)
+                _headRenderer.color = Color.Lerp(_headColor, BumpColor, t);
 
-            for (int i = 1; i < path.Length; i++)
-            {
-                if (target > arc[i])
-                    continue;
-
-                float segment = arc[i] - arc[i - 1];
-                float t = segment > 0f ? (target - arc[i - 1]) / segment : 0f;
-                return Vector3.Lerp(path[i - 1], path[i], t);
-            }
-
-            return path[^1];
+            var line = Color.Lerp(_lineColor, BumpColor, t);
+            _ChunkRenderer.startColor = line;
+            _ChunkRenderer.endColor = line;
         }
     }
 }

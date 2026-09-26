@@ -1,67 +1,56 @@
-using UnityEngine;
-
 namespace ReplicaProjects.Arrows
 {
-    public class GridOrchestratorModel
-    {
-        public int width;
-        public int height;
-    }
-
+    /// <summary>Occupancy grid (true = occupied) with coordinate conversion and ray queries.</summary>
     public class GridOrchestrator
     {
+        private readonly GridLogic _gridLogic = new();
         private bool[] _gridData;
-        private GridLogic _gridLogic;
-        public GridOrchestratorModel model;
 
-        public void Initialize(GridOrchestratorModel model)
+        public int Width { get; private set; }
+        public int Height { get; private set; }
+
+        public void Initialize(int width, int height)
         {
-            this.model = model;
-            _gridLogic = new GridLogic();
-            _gridData = new bool[model.width * model.height];
+            Width = width;
+            Height = height;
+            _gridData = new bool[width * height];
         }
 
         public void DeInitialize()
         {
-            model = null;
-            _gridLogic = null;
+            Width = 0;
+            Height = 0;
             _gridData = null;
         }
 
-        public int Lenght() => _gridData.Length;
-
-        public void Set(int x, int y, bool value)
+        public void Set(GridCoord coordinates, bool value)
         {
-            var index = _gridLogic.CoordinatesToIndex(x, y, model.width);
-
-            if (!IsInBounds(index))
+            if (!IsInBounds(coordinates))
                 return;
 
-            _gridData[index] = value;
+            _gridData[CoordinatesToIndex(coordinates)] = value;
         }
 
-        public bool IsEmpty(int x, int y)
+        public bool IsEmpty(GridCoord coordinates) => _gridLogic.IsEmpty(new GridCellInput
         {
-            return _gridLogic.IsEmpty(new GridCellInput
-            {
-                gridData = _gridData,
-                width = model.width,
-                x = x,
-                y = y
-            });
-        }
+            gridData = _gridData,
+            width = Width,
+            x = coordinates.x,
+            y = coordinates.y
+        });
 
-        public bool IsInBounds(int index) => _gridLogic.IsInBounds(index, _gridData.Length);
-        public bool IsInBounds(Vector2Int coords) => _gridLogic.IsInBounds(CoordinatesToIndex(coords), _gridData.Length);
+        public bool IsInBounds(GridCoord coordinates) =>
+            _gridLogic.IsInBounds(coordinates.x, coordinates.y, Width, Height);
 
-        public Vector2Int IndexToCoordinates(int index) => _gridLogic.IndexToCoordinates(index, model.width);
+        public GridCoord IndexToCoordinates(int index) => _gridLogic.IndexToCoordinates(index, Width);
 
-        public int CoordinatesToIndex(Vector2Int coordinates) => _gridLogic.CoordinatesToIndex(coordinates.x, coordinates.y, model.width);
+        public int CoordinatesToIndex(GridCoord coordinates) =>
+            _gridLogic.CoordinatesToIndex(coordinates.x, coordinates.y, Width);
 
-        public bool IsPathClear(Vector2Int from, Direction direction) =>
-            _gridLogic.IsPathClear(_gridData, from, direction, model.width, model.height);
+        public bool IsPathClear(GridCoord from, Direction direction) =>
+            _gridLogic.IsPathClear(_gridData, from, direction, Width, Height);
 
-        public Vector2Int FirstBlocked(Vector2Int from, Direction direction) =>
-            _gridLogic.FirstBlocked(_gridData, from, direction, model.width, model.height);
+        public GridCoord FirstBlocked(GridCoord from, Direction direction) =>
+            _gridLogic.FirstBlocked(_gridData, from, direction, Width, Height);
     }
 }

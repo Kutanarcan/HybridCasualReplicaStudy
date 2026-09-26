@@ -1,4 +1,4 @@
-﻿namespace ReplicaProjects.Arrows
+namespace ReplicaProjects.Arrows
 {
     public struct PickRandomArrayInput
     {
