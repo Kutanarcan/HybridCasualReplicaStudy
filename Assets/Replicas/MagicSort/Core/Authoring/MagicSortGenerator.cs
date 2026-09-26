@@ -1,20 +1,23 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
+using ReplicaProjects.Common;
 
 namespace ReplicaProjects.MagicSort
 {
-    public struct Metrics
+    /// <summary>
+    /// Scrambles a solved level with random free moves (depth), then empties the spare bars back into
+    /// the color bars (fragmentation), retrying until the solver confirms the result is solvable.
+    /// </summary>
+    public sealed class MagicSortGenerator
     {
-        public float Depth;          // 0-1 normalized
-        public float Fragmentation;  // 0-1 normalized
-        public int RawDepth;
-        public int RawFragmentation;
-    }
+        private static readonly int[] BaseMoves = { 15, 40, 80 };
 
-    public static class MagicSortGenerator
-    {
-        private static readonly Random _rng = new Random();
+        private readonly IRandomSource _random;
+        private readonly List<(int from, int to)> _moves = new();
+        private readonly List<int> _targets = new();
+        private readonly List<int> _preferred = new();
+
+        public MagicSortGenerator(IRandomSource random) => _random = random;
 
         public static List<Bar> CreateSolvedLevel(int colorCount, int barHeight, int emptyBarCount)
         {
@@ -31,10 +34,8 @@ namespace ReplicaProjects.MagicSort
             return bars;
         }
 
-        public static List<Bar> Generate(
-            int colorCount, int barHeight, int emptyBarCount,
-            int depthLevel, int fragLevel, out SolveResult result,
-            bool ensureSolvable = true, int maxAttempts = 100)
+        public List<Bar> Generate(int colorCount, int barHeight, int emptyBarCount, int depthLevel, int fragLevel,
+                                  out SolveResult result, bool ensureSolvable = true, int maxAttempts = 100)
         {
             if (emptyBarCount == 0)
             {
@@ -43,7 +44,6 @@ namespace ReplicaProjects.MagicSort
             }
 
             List<Bar> bars;
-            result = default;
             int attempts = 0;
 
             do
@@ -51,7 +51,7 @@ namespace ReplicaProjects.MagicSort
                 attempts++;
                 bars = CreateSolvedLevel(colorCount, barHeight, emptyBarCount);
 
-                ShuffleInternal(bars, colorCount, depthLevel);
+                Scramble(bars, colorCount, depthLevel);
                 EmptyTheEmptyBars(bars, colorCount, fragLevel);
 
                 result = MagicSortSolver.Solve(MagicSortFlat.Flatten(bars, barHeight), barHeight);
@@ -63,123 +63,91 @@ namespace ReplicaProjects.MagicSort
             return bars;
         }
 
-        private static void ShuffleInternal(List<Bar> bars, int colorCount, int depthLevel)
+        private void Scramble(List<Bar> bars, int colorCount, int depthLevel)
         {
-            int[] baseMoves = { 15, 40, 80 };
-            int moveCount = baseMoves[Math.Min(depthLevel, 2)]
-                          + _rng.Next(15) + colorCount * 4;
-
-            int lastFrom = -1, lastTo = -1, prevFrom = -1;
+            int moveCount = BaseMoves[Math.Min(depthLevel, 2)] + _random.Next(0, 15) + colorCount * 4;
+            int lastFrom = -1, lastTo = -1;
 
             for (int m = 0; m < moveCount; m++)
             {
-                var valid = new List<(int from, int to)>();
-                for (int from = 0; from < bars.Count; from++)
-                {
-                    if (bars[from].IsEmpty) continue;
-                    for (int to = 0; to < bars.Count; to++)
-                    {
-                        if (from == to || bars[to].IsFull) continue;
-                        if (from == lastTo && to == lastFrom) continue;
-                        valid.Add((from, to));
-                    }
-                }
-                if (valid.Count == 0) break;
+                CollectFreeMoves(bars, lastFrom, lastTo);
+                if (_moves.Count == 0) break;
 
-                (int f, int t) mv;
-                if (depthLevel >= 2 && prevFrom >= 0 && _rng.NextDouble() < depthLevel * 0.25)
-                {
-                    var sameSrc = valid.Where(v => v.from == prevFrom).ToList();
-                    mv = sameSrc.Count > 0
-                        ? sameSrc[_rng.Next(sameSrc.Count)]
-                        : valid[_rng.Next(valid.Count)];
-                }
-                else
-                {
-                    mv = valid[_rng.Next(valid.Count)];
-                }
+                // Deeper levels keep digging into the same source bar.
+                var move = depthLevel >= 2 && lastFrom >= 0 && _random.NextDouble() < depthLevel * 0.25
+                    ? PickPreferringSource(lastFrom)
+                    : _moves[_random.Next(0, _moves.Count)];
 
-                bars[mv.t].Push(bars[mv.f].Pop());
-                lastFrom = mv.f;
-                lastTo = mv.t;
-                prevFrom = mv.f;
+                bars[move.to].Push(bars[move.from].Pop());
+                lastFrom = move.from;
+                lastTo = move.to;
             }
         }
 
-        private static void EmptyTheEmptyBars(List<Bar> bars, int colorCount, int fragLevel)
+        // Every designer free-move except undoing the previous one.
+        private void CollectFreeMoves(List<Bar> bars, int lastFrom, int lastTo)
         {
-            for (int eb = colorCount; eb < bars.Count; eb++)
+            _moves.Clear();
+            for (int from = 0; from < bars.Count; from++)
             {
-                while (!bars[eb].IsEmpty)
+                if (bars[from].IsEmpty) continue;
+                for (int to = 0; to < bars.Count; to++)
                 {
-                    int item = bars[eb].Top;
-                    var targets = new List<int>();
+                    if (from == to || bars[to].IsFull) continue;
+                    if (from == lastTo && to == lastFrom) continue;
+                    _moves.Add((from, to));
+                }
+            }
+        }
+
+        private (int from, int to) PickPreferringSource(int source)
+        {
+            _preferred.Clear();
+            for (int i = 0; i < _moves.Count; i++)
+                if (_moves[i].from == source)
+                    _preferred.Add(i);
+
+            return _preferred.Count > 0
+                ? _moves[_preferred[_random.Next(0, _preferred.Count)]]
+                : _moves[_random.Next(0, _moves.Count)];
+        }
+
+        private void EmptyTheEmptyBars(List<Bar> bars, int colorCount, int fragLevel)
+        {
+            for (int spare = colorCount; spare < bars.Count; spare++)
+            {
+                while (!bars[spare].IsEmpty)
+                {
+                    int item = bars[spare].Top;
+
+                    _targets.Clear();
                     for (int t = 0; t < colorCount; t++)
                         if (!bars[t].IsFull)
-                            targets.Add(t);
+                            _targets.Add(t);
 
-                    if (targets.Count == 0) break;
+                    if (_targets.Count == 0) break;
 
-                    int pick;
-                    if (fragLevel >= 2)
-                    {
-                        var diff = targets.Where(t =>
-                            !bars[t].IsEmpty && bars[t].Top != item).ToList();
-                        pick = diff.Count > 0 && _rng.NextDouble() < 0.7 + fragLevel * 0.1
-                            ? diff[_rng.Next(diff.Count)]
-                            : targets[_rng.Next(targets.Count)];
-                    }
-                    else if (fragLevel == 0)
-                    {
-                        var same = targets.Where(t =>
-                            !bars[t].IsEmpty && bars[t].Top == item).ToList();
-                        pick = same.Count > 0 && _rng.NextDouble() < 0.8
-                            ? same[_rng.Next(same.Count)]
-                            : targets[_rng.Next(targets.Count)];
-                    }
-                    else
-                    {
-                        pick = targets[_rng.Next(targets.Count)];
-                    }
-
-                    bars[pick].Push(bars[eb].Pop());
+                    bars[PickTarget(bars, item, fragLevel)].Push(bars[spare].Pop());
                 }
             }
         }
 
-        public static Metrics CalculateMetrics(IReadOnlyList<Bar> bars)
+        // High fragmentation prefers a different top color; low prefers the same one.
+        private int PickTarget(List<Bar> bars, int item, int fragLevel)
         {
-            int height = bars.Count > 0 ? bars[0].Capacity : 0;
-            int totalTrans = 0, totalDepth = 0, filled = 0;
+            if (fragLevel == 1)
+                return _targets[_random.Next(0, _targets.Count)];
 
-            foreach (var bar in bars)
-            {
-                if (bar.Count <= 1) continue;
-                filled++;
+            bool wantSame = fragLevel == 0;
+            _preferred.Clear();
+            foreach (var t in _targets)
+                if (!bars[t].IsEmpty && (bars[t].Top == item) == wantSame)
+                    _preferred.Add(t);
 
-                for (int i = 1; i < bar.Count; i++)
-                    if (bar[i] != bar[i - 1])
-                        totalTrans++;
-
-                int sameFromBottom = 1;
-                for (int i = 1; i < bar.Count; i++)
-                {
-                    if (bar[i] == bar[0]) sameFromBottom++;
-                    else break;
-                }
-                totalDepth += bar.Count - sameFromBottom;
-            }
-
-            int maxTrans = filled * (height - 1);
-            int maxDepth = filled * (height - 1);
-
-            return new Metrics
-            {
-                Depth = maxDepth > 0 ? (float)totalDepth / maxDepth : 0f,
-                Fragmentation = maxTrans > 0 ? (float)totalTrans / maxTrans : 0f,
-                RawDepth = totalDepth,
-                RawFragmentation = totalTrans
-            };
+            double preferChance = wantSame ? 0.8 : 0.7 + fragLevel * 0.1;
+            return _preferred.Count > 0 && _random.NextDouble() < preferChance
+                ? _preferred[_random.Next(0, _preferred.Count)]
+                : _targets[_random.Next(0, _targets.Count)];
         }
     }
 }

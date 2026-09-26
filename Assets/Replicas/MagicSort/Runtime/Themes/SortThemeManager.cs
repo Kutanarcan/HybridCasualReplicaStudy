@@ -10,7 +10,7 @@ namespace ReplicaProjects.MagicSort
     /// Tema değişiminde kamera, cache'lenen başlangıç pozuna resetlenir
     /// (FitCamera göreli += kaydırma yaptığı için şart).
     /// </summary>
-    public class SortThemeManager
+    public class SortThemeManager : IThemeCycle
     {
         public event Action<int> BarTapped;
 
@@ -40,7 +40,7 @@ namespace ReplicaProjects.MagicSort
             }
         }
 
-        public ISortTheme ActivateNext()
+        public void ActivateNext()
         {
             Active.Teardown();
             _themeObjects[_activeIndex].SetActive(false);
@@ -48,7 +48,6 @@ namespace ReplicaProjects.MagicSort
             _activeIndex = (_activeIndex + 1) % _themes.Count;
 
             _themeObjects[_activeIndex].SetActive(true);
-            return Active;
         }
 
         public void ResetCamera()

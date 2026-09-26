@@ -1,4 +1,3 @@
-
 using DG.Tweening;
 using ReplicaProjects.Common;
 using System.Collections.Generic;
@@ -6,126 +5,77 @@ using UnityEngine;
 
 namespace ReplicaProjects.MagicSort
 {
-    public class GameManager : MonoBehaviour
+    /// <summary>Composition root: builds the themes and the Core session, wires UI buttons and level flow.</summary>
+    public class MagicSortGameManager : MonoBehaviour
     {
         [SerializeField] private List<MagicSortLevel> _LevelList;
+
+        private const float END_SCREEN_DELAY = 2f;
 
         private EndScreenPresentation _endScreenPresentation;
         private InGameUI _inGameUI;
         private SortThemeManager _themes;
-        private PresentationCore _presentation;
-        private readonly MagicSortOrchestrator _orchestrator = new();
-
-        private int _currentLevelIndex;
-        private bool _isSolvedLevel = false;
+        private MagicSortSession _session;
+        private LevelCursor _levels;
+        private Tween _endScreenDelay;
 
         private void Awake()
         {
             Application.targetFrameRate = 60;
             Create();
-            Initialize();
+            Wire();
+            LoadCurrentLevel();
         }
 
         private void Create()
         {
-            var endScreenPresentationPrefab = MagicSortReplicaAssetDatabase.EndScreenPresentationPrefab;
-            var _inGameUIPrefab = MagicSortReplicaAssetDatabase.InGameUIPrefab;
-
+            _levels = new LevelCursor(_LevelList.Count);
             _themes = new SortThemeManager(MagicSortReplicaAssetDatabase.ThemePrefabs);
-            _presentation = new PresentationCore(_themes.Active);
-            _endScreenPresentation = Instantiate(endScreenPresentationPrefab);
-            _inGameUI = Instantiate(_inGameUIPrefab);
+            _session = new MagicSortSession(_themes);
+            _endScreenPresentation = Instantiate(MagicSortReplicaAssetDatabase.EndScreenPresentationPrefab);
+            _inGameUI = Instantiate(MagicSortReplicaAssetDatabase.InGameUIPrefab);
         }
 
-        private void Initialize()
+        private void Wire()
         {
-            _themes.BarTapped += OnBarTapped;
-
-            LoadLevel(_currentLevelIndex);
+            _themes.BarTapped += _session.Tap;
+            _session.LevelCompleted += ScheduleEndScreen;
+            _endScreenPresentation.InteractionButtonPressed += OnNextLevelPressed;
+            _inGameUI.RestartLevelButtonPressed += LoadCurrentLevel;
+            _inGameUI.SwitchThemePressed += _session.SwitchTheme;
         }
 
-        private void OnSwitchThemeButtonClicked()
+        private void OnDestroy()
         {
-            SwitchTheme();
+            _endScreenDelay?.Kill();
         }
 
-        private void OnRestartLevelButtonClicked()
+        private void LoadCurrentLevel()
         {
-            ReloadLevel(_currentLevelIndex);
-        }
+            // A pending end screen belongs to the level being replaced.
+            _endScreenDelay?.Kill();
+            _endScreenDelay = null;
 
-        private void OnEndGameButtonPressed()
-        {
-            ReloadLevel((_currentLevelIndex + 1) % _LevelList.Count);
-        }
-
-        private void LoadLevel(int index)
-        {
             _inGameUI.Show();
             _endScreenPresentation.Hide();
 
-            _isSolvedLevel = false;
-
-            _currentLevelIndex = index;
-            _orchestrator.Initialize(_LevelList[index]);
-            Build(_orchestrator.GetBoard());
-
-            _endScreenPresentation.InteractionButtonPressed += OnEndGameButtonPressed;
-            _inGameUI.RestartLevelButtonPressed += OnRestartLevelButtonClicked;
-            _inGameUI.RestartSwitchThemePressed += OnSwitchThemeButtonClicked;
+            var level = _LevelList[_levels.Current];
+            _session.Load(level.slots, level.barHeight);
         }
 
-        private void TryToCallEndGame()
+        private void OnNextLevelPressed()
         {
-            if (!_isSolvedLevel)
-                return;
-
-            DOVirtual.DelayedCall(2f, () =>
-            {
-                _inGameUI.Hide();
-                _endScreenPresentation.SetState(true);
-            });
+            _levels.Advance();
+            LoadCurrentLevel();
         }
 
-        private void ReloadLevel(int index)
+        private void ScheduleEndScreen() =>
+            _endScreenDelay = DOVirtual.DelayedCall(END_SCREEN_DELAY, ShowEndScreen);
+
+        private void ShowEndScreen()
         {
-            _endScreenPresentation.InteractionButtonPressed -= OnEndGameButtonPressed;
-            _inGameUI.RestartLevelButtonPressed -= OnRestartLevelButtonClicked;
-            _inGameUI.RestartSwitchThemePressed -= OnSwitchThemeButtonClicked;
-
-            _presentation.Teardown();
-            LoadLevel(index);
-        }
-
-        private void SwitchTheme()
-        {
-            if (_isSolvedLevel)
-                return; // end screen bekliyor; tema değiştirme
-
-            _themes.ActivateNext();          // eski temayı Teardown edip havuzdan sıradakini açar
-            _presentation = new PresentationCore(_themes.Active);
-            _orchestrator.ClearSelection();  // board korunur, seçim temizlenir
-            Build(_orchestrator.GetBoard()); // yeni tema mevcut board'dan kendini kurar
-        }
-
-        private void OnBarTapped(int barIndex)
-        {
-            if (_presentation.InputLocked)
-                return;
-
-            var result = _orchestrator.HandleTap(barIndex);
-
-            _isSolvedLevel = result.LevelSolved;
-
-            _presentation.Handle(in result);
-
-            TryToCallEndGame();
-        }
-
-        public void Build(in SequentialBarArrayInput board)
-        {
-            _themes.ResetCamera();
-            _presentation.Build(in board, _orchestrator.Logic);
+            _inGameUI.Hide();
+            _endScreenPresentation.SetState(true);
         }
     }
 }

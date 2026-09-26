@@ -2,13 +2,6 @@ using System.Collections.Generic;
 
 namespace ReplicaProjects.MagicSort
 {
-    public struct MoveRecord
-    {
-        public int From;
-        public int To;
-        public int Color; // color index
-    }
-
     /// <summary>
     /// Editor-only working board for authoring levels. Uses the <b>designer's</b> rule set:
     /// the top ball may move onto ANY non-full bar, with no color restriction, so a designer
@@ -22,7 +15,7 @@ namespace ReplicaProjects.MagicSort
 
         private List<Bar> _bars;
         private List<Bar> _initial;   // snapshot of the loaded level, for Restart()
-        private readonly List<MoveRecord> _historyList = new List<MoveRecord>();
+        private readonly List<MoveRecord> _historyList = new();
 
         public MagicSortLevelEditorLogic(IReadOnlyList<Bar> bars)
         {
@@ -91,7 +84,7 @@ namespace ReplicaProjects.MagicSort
         public bool Undo()
         {
             if (_historyList.Count == 0) return false;
-            var last = _historyList[_historyList.Count - 1];
+            var last = _historyList[^1];
             _historyList.RemoveAt(_historyList.Count - 1);
             _bars[last.To].Pop();
             _bars[last.From].Push(last.Color);
@@ -99,10 +92,8 @@ namespace ReplicaProjects.MagicSort
         }
 
         /// <summary>BFS solvability / min-move check of the current board (runtime rules).</summary>
-        public SolveResult CheckCurrentState()
-        {
-            return MagicSortSolver.Solve(MagicSortFlat.Flatten(_bars, BarHeight), BarHeight);
-        }
+        public SolveResult CheckCurrentState() =>
+            MagicSortSolver.Solve(MagicSortFlat.Flatten(_bars, BarHeight), BarHeight);
 
         private static List<Bar> Clone(IReadOnlyList<Bar> bars)
         {

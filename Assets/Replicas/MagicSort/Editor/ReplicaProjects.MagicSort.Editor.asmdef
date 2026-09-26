@@ -1,7 +1,11 @@
 {
     "name": "ReplicaProjects.MagicSort.Editor",
+    "rootNamespace": "ReplicaProjects.MagicSort.EditorTools",
     "references": [
-        "ReplicaProjects.MagicSort"
+        "ReplicaProjects.MagicSort",
+        "ReplicaProjects.MagicSort.Core",
+        "ReplicaProjects.Common.Core",
+        "ReplicaProjects.Common.Editor"
     ],
     "includePlatforms": [
         "Editor"

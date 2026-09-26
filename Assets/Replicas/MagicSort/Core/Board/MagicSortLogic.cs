@@ -1,11 +1,16 @@
-using System.Collections.Generic;
-using UnityEngine;
+using System;
 
 namespace ReplicaProjects.MagicSort
 {
     public class MagicSortLogic
     {
-        private const int EMPTY_INDEX_VALUE = MagicSortLevel.Empty;
+        private const int EMPTY_INDEX_VALUE = ColorSlot.Empty;
+
+        /// <summary>
+        /// Slot index meaning "bar has no filled slot". Deliberately -1 so that top + 1 is always the
+        /// first free slot. It is a slot index, not a color — compare colors with <see cref="ColorSlot.Empty"/>.
+        /// </summary>
+        public const int NoSlot = -1;
 
         public bool IsBarEmpty(in SequentialBarArrayInput input, int barIndex)
         {
@@ -46,10 +51,10 @@ namespace ReplicaProjects.MagicSort
             var bar = input.Bar(barIndex);
             var index = TopFilledSlotIndex(bar);
 
-            return index >= 0 ? bar[index] : EMPTY_INDEX_VALUE;
+            return index == NoSlot ? EMPTY_INDEX_VALUE : bar[index];
         }
 
-        public int TopFilledSlotIndex(System.ReadOnlySpan<int> bar)
+        public int TopFilledSlotIndex(ReadOnlySpan<int> bar)
         {
             for (int slot = bar.Length - 1; slot >= 0; slot--)
             {
@@ -57,9 +62,10 @@ namespace ReplicaProjects.MagicSort
                     return slot;
             }
 
-            return EMPTY_INDEX_VALUE;
+            return NoSlot;
         }
-        public bool IsBarUniform(System.ReadOnlySpan<int> bar)
+
+        public bool IsBarUniform(ReadOnlySpan<int> bar)
         {
             int first = bar[0];
             for (int slot = 1; slot < bar.Length; slot++)
@@ -70,7 +76,8 @@ namespace ReplicaProjects.MagicSort
 
             return true;
         }
-        public int SameColorRunFromTop(System.ReadOnlySpan<int> bar, int topSlot, int color)
+
+        public int SameColorRunFromTop(ReadOnlySpan<int> bar, int topSlot, int color)
         {
             int run = 0;
 
@@ -87,11 +94,9 @@ namespace ReplicaProjects.MagicSort
             if (IsBarEmpty(input, sourceBarIndex))
                 return AvailablePlacementResult.Rejected(PlacementOutcome.SourceEmpty);
 
-            // Is Same bar -> No Move Count
             if (IsSameBar(sourceBarIndex, targetBarIndex))
                 return AvailablePlacementResult.Rejected(PlacementOutcome.SameBar);
 
-            // Is Full -> No Move Count
             if (IsBarFull(input, targetBarIndex))
                 return AvailablePlacementResult.Rejected(PlacementOutcome.TargetFull);
 
@@ -107,8 +112,8 @@ namespace ReplicaProjects.MagicSort
                 return AvailablePlacementResult.Rejected(PlacementOutcome.ColorMismatch);
 
             int sameColorRun = SameColorRunFromTop(source, sourceTopSlot, sourceColor);
-            int targetFree = input.barHeight - TopFilledSlotIndex(target) - 1;
-            int movedCount = Mathf.Min(sameColorRun, targetFree);
+            int targetFree = input.barHeight - (TopFilledSlotIndex(target) + 1);
+            int movedCount = Math.Min(sameColorRun, targetFree);
 
             int sourceRemaining = sourceTopSlot + 1 - movedCount;
             int sourceNewTop = sourceRemaining > 0 ? source[sourceRemaining - 1] : EMPTY_INDEX_VALUE;
@@ -136,7 +141,7 @@ namespace ReplicaProjects.MagicSort
                 : TapResult.Retargeted(currentSource, tappedBar, pour.outCome);
         }
 
-        public void ApplyPour(System.Span<int> slots, int barHeight,
+        public void ApplyPour(Span<int> slots, int barHeight,
                               int sourceBarIndex, int targetBarIndex, int movedCount)
         {
             int srcBase = sourceBarIndex * barHeight;

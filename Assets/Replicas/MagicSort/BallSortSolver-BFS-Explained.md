@@ -1,6 +1,6 @@
 # How the Ball Sort Solver Works (BFS, visualized)
 
-This explains what [`BallSortSolver.Solve`](Runtime/BallSortSolver.cs) actually does — not the
+This explains what [`MagicSortSolver.Solve`](Core/Authoring/MagicSortSolver.cs) actually does — not the
 bit-packing tricks, but the **idea**: how a puzzle becomes a graph, and how Breadth‑First Search
 walks that graph to find the *shortest* solution.
 
@@ -186,7 +186,7 @@ difficulty (how tangled the board is), not just with move count.
 
 ## 7. Reading it back in the code
 
-| Concept here | In [`BallSortSolver.cs`](Runtime/BallSortSolver.cs) |
+| Concept here | In [`MagicSortSolver.cs`](Core/Authoring/MagicSortSolver.cs) |
 |---|---|
 | A room (board position) | a `ulong[]` — one packed number per bar |
 | The current ring | `frontier` |

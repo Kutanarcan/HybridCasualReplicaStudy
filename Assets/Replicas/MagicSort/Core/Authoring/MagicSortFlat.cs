@@ -4,12 +4,11 @@ namespace ReplicaProjects.MagicSort
 {
     /// <summary>
     /// The single bridge between the editor's OO <see cref="Bar"/> authoring model and the
-    /// runtime Data-Oriented flat layout (see <see cref="MagicSortLevel"/>). Kept pure (no
-    /// UnityEngine) so it stays unit-testable.
+    /// runtime Data-Oriented flat layout.
     ///
     /// Flat layout: length <c>barHeight * barCount</c>, indexed <c>bar * barHeight + slot</c>
     /// (slot 0 = bottom); balls fill each bar bottom-up, remaining slots are
-    /// <see cref="MagicSortLevel.Empty"/>.
+    /// <see cref="ColorSlot.Empty"/>.
     /// </summary>
     public static class MagicSortFlat
     {
@@ -20,7 +19,7 @@ namespace ReplicaProjects.MagicSort
             {
                 var bar = bars[b];
                 for (int j = 0; j < barHeight; j++)
-                    slots[b * barHeight + j] = j < bar.Count ? bar[j] : MagicSortLevel.Empty;
+                    slots[b * barHeight + j] = j < bar.Count ? bar[j] : ColorSlot.Empty;
             }
             return slots;
         }
@@ -35,7 +34,7 @@ namespace ReplicaProjects.MagicSort
                 for (int j = 0; j < barHeight; j++)
                 {
                     int color = slots[b * barHeight + j];
-                    if (color == MagicSortLevel.Empty) break; // rest of the bar is empty
+                    if (color == ColorSlot.Empty) break; // rest of the bar is empty
                     bar.Push(color);
                 }
                 bars.Add(bar);

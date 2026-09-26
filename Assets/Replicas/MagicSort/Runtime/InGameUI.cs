@@ -6,7 +6,7 @@ namespace ReplicaProjects.MagicSort
     public class InGameUI : MonoBehaviour
     {
         public event System.Action RestartLevelButtonPressed;
-        public event System.Action RestartSwitchThemePressed;
+        public event System.Action SwitchThemePressed;
 
         [SerializeField] private Canvas _Canvas;
         [SerializeField] private Button _RestartButton;
@@ -25,7 +25,7 @@ namespace ReplicaProjects.MagicSort
 
         private void OnSwitchThemeButtonPressed()
         {
-            RestartSwitchThemePressed?.Invoke();
+            SwitchThemePressed?.Invoke();
         }
 
         private void OnDestroy()

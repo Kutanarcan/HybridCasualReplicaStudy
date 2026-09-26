@@ -53,18 +53,25 @@ namespace ReplicaProjects.MagicSort
                     break;
 
                 case TapKind.Consumed:
-                    var cmd = new TransportData(
-                        result.SourceBar, result.TargetBar,
-                        result.TransportResult.MovedColor, result.TransportResult.movedCount,
-                        _barHeight, result.TargetBarSolved);
-
-                    _theme.PlayTransport(in cmd, () =>
-                    {
-                        if (cmd.TargetSolved)
-                            _theme.ShowSolved(cmd.TargetBar, animated: true);
-                    });
+                    PlayTransport(in result);
                     break;
             }
+        }
+
+        // Allocates one closure per move (captures the command). Measured in MagicSortSessionTests;
+        // per-tap, not per-frame, and dwarfed by the theme's own tween allocations.
+        private void PlayTransport(in TapResult result)
+        {
+            var cmd = new TransportData(
+                result.SourceBar, result.TargetBar,
+                result.TransportResult.MovedColor, result.TransportResult.movedCount,
+                _barHeight, result.TargetBarSolved);
+
+            _theme.PlayTransport(in cmd, () =>
+            {
+                if (cmd.TargetSolved)
+                    _theme.ShowSolved(cmd.TargetBar, animated: true);
+            });
         }
 
         private void Lock() => _inputLocked = true;

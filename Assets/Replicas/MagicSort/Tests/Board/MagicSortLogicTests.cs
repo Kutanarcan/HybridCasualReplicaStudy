@@ -4,7 +4,7 @@ namespace ReplicaProjects.MagicSort.Tests
 {
     public class MagicSortLogicTests
     {
-        private const int E = MagicSortLevel.Empty; // -1
+        private const int E = ColorSlot.Empty; // -1
         private const int BarHeight = 4;
 
         private readonly MagicSortLogic _logic = new();
@@ -174,10 +174,10 @@ namespace ReplicaProjects.MagicSort.Tests
         }
 
         [Test]
-        public void TopFilledSlotIndex_ReturnsEmptyForEmptyBar()
+        public void TopFilledSlotIndex_EmptyBar_ReturnsNoSlot()
         {
             int[] bar = { E, E, E, E };
-            Assert.AreEqual(E, _logic.TopFilledSlotIndex(bar));
+            Assert.AreEqual(MagicSortLogic.NoSlot, _logic.TopFilledSlotIndex(bar));
         }
 
         // ── IsBarUniform ──

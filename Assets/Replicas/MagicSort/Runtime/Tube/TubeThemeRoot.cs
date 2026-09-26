@@ -10,17 +10,12 @@ namespace ReplicaProjects.MagicSort
         public event Action<int> BarTapped;
 
         [SerializeField] private TubeBarView _BarViewPrefab;
-        [SerializeField] private ColorPallete _colorPalette;
+        [SerializeField] private ColorPalette _colorPalette;
 
-        private const float X_OFFSET = 1.25F;
-        private const float ROW_Y_OFFSET = 4.5F;   // satır başına düşüş
-        private const int MAX_COLUMNS = 3;
+        private static readonly BarGridLayout Layout = new(columns: 3, columnSpacing: 1.25f, rowDrop: 4.5f, rowDepth: 0f);
 
         private const float BAR_VISUAL_HEIGHT = 4.5F; // tüp yüksekliği için üst pay (gerekirse ayarla)
-        private const float CAMERA_PAD_X = 1.0F;
-        private const float CAMERA_PAD_Y = 0.75F;
-
-        public readonly Vector3 Offset = new Vector3(X_OFFSET, ROW_Y_OFFSET, 0f);
+        private static readonly Vector2 CameraPadding = new(1.0f, 0.75f);
 
         private GameObject _barsRoot;
         private List<TubeBarView> _views;
@@ -35,38 +30,31 @@ namespace ReplicaProjects.MagicSort
             _board = new DiscreteItemBoard(bars.Count, this);
 
             for (int i = 0; i < bars.Count; i++)
-            {
-                int col = i % MAX_COLUMNS;
-                int row = i / MAX_COLUMNS;
-
-                TubeBarView barView = Instantiate(_BarViewPrefab, _barsRoot.transform);
-                barView.transform.localPosition = new Vector3(col * Offset.x, -row * Offset.y, 0f);
-
-                barView.SetPalette(_colorPalette.colorList);
-
-                int barIndex = i;
-                barView.Clicked += () => OnBarViewClicked(barIndex);
-
-                var items = barView.Setup(bars[i]);
-                foreach (var item in items)
-                    _board.Push(barIndex, item);
-
-                _views.Add(barView);
-            }
+                _views.Add(SpawnBar(i, bars[i]));
 
             AdjustCamera(bars.Count);
         }
 
+        private TubeBarView SpawnBar(int barIndex, BarVisualData data)
+        {
+            Layout.Position(barIndex, out float x, out float y, out float z);
+
+            TubeBarView barView = Instantiate(_BarViewPrefab, _barsRoot.transform);
+            barView.transform.localPosition = new Vector3(x, y, z);
+            barView.SetPalette(_colorPalette.colorList);
+            barView.Clicked += () => BarTapped?.Invoke(barIndex);
+
+            foreach (var item in barView.Setup(data))
+                _board.Push(barIndex, item);
+
+            return barView;
+        }
+
         public void Teardown()
         {
-            for (int i = _views.Count - 1; i >= 0; i--)
-            {
-                var view = _views[i];
-                if (view == null)
-                    continue;
-
-                view.Teardown();
-            }
+            foreach (var view in _views)
+                if (view != null)
+                    view.Teardown();
 
             Destroy(_barsRoot); // SetLink(KillOnDisable) sayesinde çalışan tween'ler de ölür
             _barsRoot = null;
@@ -76,22 +64,9 @@ namespace ReplicaProjects.MagicSort
 
         public void PlayIntro(Action onComplete)
         {
-            int remaining = _views.Count;
-            if (remaining == 0)
-            {
-                onComplete();
-                return;
-            }
-
+            var counter = new CompletionCounter(_views.Count, onComplete);
             foreach (var view in _views)
-            {
-                view.PlayIntroAnimation(view.ItemsBottomToTop()).OnComplete(() =>
-                {
-                    remaining--;
-                    if (remaining == 0)
-                        onComplete();
-                });
-            }
+                view.PlayIntroAnimation(view.ItemsBottomToTop()).OnComplete(counter.Signal);
         }
 
         public void ShowSelected(int bar) => _board.Selected(bar);
@@ -100,12 +75,8 @@ namespace ReplicaProjects.MagicSort
         public void PlayTransport(in TransportData command, Action onComplete)
             => _board.PlayTransport(in command, _views[command.SourceBar].TopPositionHolder.position, onComplete);
 
-        public void ShowSolved(int bar, bool animated)
-        {
-            _views[bar].PlaySolvedSound();
-        }
-
-        private void OnBarViewClicked(int index) => BarTapped?.Invoke(index);
+        // Tubes have no solved pose; only the sound plays.
+        public void ShowSolved(int bar, bool animated) => _views[bar].PlaySolvedSound();
 
         // DiscreteItemBoard.IItemAnimator: her top kendi bar view'ının içinde yaşar,
         // bu yüzden hedef bar view'a devredilir.
@@ -115,49 +86,16 @@ namespace ReplicaProjects.MagicSort
         public void Selected(GameObject item) => item.GetComponentInParent<TubeBarView>().Selected(item);
         public void Deselected(GameObject item) => item.GetComponentInParent<TubeBarView>().Deselected(item);
 
+        // The tube sprite is centred on the bar origin (pivot = center), so the vertical span is
+        // symmetric around it; otherwise the board would drift vertically.
         private void AdjustCamera(int barCount)
         {
             Camera cam = Camera.main;
             if (cam == null)
                 return;
 
-            Transform camT = cam.transform;
-
-            // Bar tepe/taban noktalarını kamera uzayına yansıt, board'un ekran sınırlarını bul.
-            // Tüp sprite'ı bar orijininde MERKEZLENDİĞİ için (pivot = center) dikey açıklık
-            // orijinin ETRAFINDA simetriktir; aksi halde board dikeyde kayar.
-            float halfVisual = BAR_VISUAL_HEIGHT * 0.5f;
-
-            float minX = float.MaxValue, maxX = float.MinValue;
-            float minY = float.MaxValue, maxY = float.MinValue;
-
-            for (int i = 0; i < barCount; i++)
-            {
-                int col = i % MAX_COLUMNS;
-                int row = i / MAX_COLUMNS;
-
-                Vector3 barCenter = transform.TransformPoint(new Vector3(col * Offset.x, -row * Offset.y, 0f));
-                Vector3 barTop = barCenter + Vector3.up * halfVisual;
-                Vector3 barBottom = barCenter - Vector3.up * halfVisual;
-
-                Vector3 lp = camT.InverseTransformPoint(barTop);
-                minX = Mathf.Min(minX, lp.x); maxX = Mathf.Max(maxX, lp.x);
-                minY = Mathf.Min(minY, lp.y); maxY = Mathf.Max(maxY, lp.y);
-
-                lp = camT.InverseTransformPoint(barBottom);
-                minX = Mathf.Min(minX, lp.x); maxX = Mathf.Max(maxX, lp.x);
-                minY = Mathf.Min(minY, lp.y); maxY = Mathf.Max(maxY, lp.y);
-            }
-
-            // Kamerayı kendi sağ/yukarı eksenlerinde kaydırarak board'u ortala
-            float centerX = (minX + maxX) * 0.5f;
-            float centerY = (minY + maxY) * 0.5f;
-            camT.position += camT.right * centerX + camT.up * centerY;
-
-            float halfHeight = (maxY - minY) * 0.5f + CAMERA_PAD_Y;
-            float halfWidth = (maxX - minX) * 0.5f + CAMERA_PAD_X;
-
-            cam.orthographicSize = Mathf.Max(halfHeight, halfWidth / cam.aspect);
+            float half = BAR_VISUAL_HEIGHT * 0.5f;
+            ThemeCameraFitter.Fit(cam, transform, Layout, barCount, -half, half, CameraPadding);
         }
     }
 }

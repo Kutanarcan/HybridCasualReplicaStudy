@@ -1,77 +1,55 @@
-
-using UnityEngine;
+using System;
 
 namespace ReplicaProjects.MagicSort
 {
-    public struct MagisSortDataOfArrays
-    {
-        public int[] sequentialBarArray;
-    }
-
+    /// <summary>
+    /// Owns the mutable board and the current selection; turns taps into validated moves.
+    /// Once the level is solved it stays solved — later taps are ignored until the next Initialize.
+    /// </summary>
     public class MagicSortOrchestrator
     {
-        private MagisSortDataOfArrays magicSortData;
+        private const int NoSelection = -1;
+
         private readonly MagicSortLogic _magicSortLogic = new();
+        private int[] _slots = Array.Empty<int>();
+        private int _barHeight = 1;
+        private int _selectedBar = NoSelection;
+
         public MagicSortLogic Logic => _magicSortLogic;
+        public bool IsLevelSolved { get; private set; }
 
-        private int _selectedBar = -1;
-        public int _barHeight;
-        public int _barCount;
-        public int _colorCount;
-
-        public void Initialize(MagicSortLevel level)
+        public void Initialize(ReadOnlySpan<int> slots, int barHeight)
         {
-            _selectedBar = -1;
-            _barHeight = level.barHeight;
-            _colorCount = level.colorCount;
-            _barCount = level.barCount;
-
-            magicSortData = new MagisSortDataOfArrays()
-            {
-                sequentialBarArray = new int[level.slots.Length]
-            };
-
-            for (int i = 0; i < level.slots.Length; i++)
-            {
-                int barColorIndex = level.slots[i];
-                magicSortData.sequentialBarArray[i] = barColorIndex;
-            }
+            _barHeight = barHeight;
+            _slots = slots.ToArray();
+            _selectedBar = NoSelection;
+            IsLevelSolved = _magicSortLogic.IsAllBarsSolved(GetBoard());
         }
-        public SequentialBarArrayInput GetBoard() => new(magicSortData.sequentialBarArray, _barHeight);
 
-        public void ClearSelection() => _selectedBar = -1;
+        public SequentialBarArrayInput GetBoard() => new(_slots, _barHeight);
 
-        public void DeInitialize()
-        {
-
-        }
+        public void ClearSelection() => _selectedBar = NoSelection;
 
         public TapResult HandleTap(int barIndex)
         {
-            var board = new SequentialBarArrayInput(magicSortData.sequentialBarArray, _barHeight);
+            var board = GetBoard();
 
-            if (_magicSortLogic.IsBarSolved(in board, barIndex))
-                return TapResult.Ignored();
-
-            if (_magicSortLogic.IsAllBarsSolved(in board))
+            if (IsLevelSolved || _magicSortLogic.IsBarSolved(in board, barIndex))
                 return TapResult.Ignored();
 
             var result = _magicSortLogic.EvaluateTap(board, _selectedBar, barIndex);
-
             _selectedBar = result.NewSource;
 
-            if (result.Kind == TapKind.Consumed)
-            {
-                _magicSortLogic.ApplyPour(magicSortData.sequentialBarArray, _barHeight,
-                                          result.SourceBar, result.TargetBar, result.TransportResult.movedCount);
+            if (result.Kind != TapKind.Consumed)
+                return result;
 
-                var newBoard = GetBoard();
-                result = result.WithSolveInfo(
-                    _magicSortLogic.IsBarSolved(in newBoard, result.TargetBar),
-                    _magicSortLogic.IsAllBarsSolved(in newBoard));
-            }
+            _magicSortLogic.ApplyPour(_slots, _barHeight, result.SourceBar, result.TargetBar,
+                                      result.TransportResult.movedCount);
 
-            return result;
+            var newBoard = GetBoard();
+            IsLevelSolved = _magicSortLogic.IsAllBarsSolved(in newBoard);
+
+            return result.WithSolveInfo(_magicSortLogic.IsBarSolved(in newBoard, result.TargetBar), IsLevelSolved);
         }
     }
 }

@@ -1,7 +1,11 @@
 {
     "name": "ReplicaProjects.MagicSort.Tests",
+    "rootNamespace": "ReplicaProjects.MagicSort.Tests",
     "references": [
+        "ReplicaProjects.MagicSort.Core",
         "ReplicaProjects.MagicSort",
+        "ReplicaProjects.Common.Core",
+        "ReplicaProjects.Common.TestSupport",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],

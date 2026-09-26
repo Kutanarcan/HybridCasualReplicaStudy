@@ -1,14 +1,10 @@
-﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using UnityEngine;
 
 namespace ReplicaProjects.MagicSort
 {
-    [CreateAssetMenu(fileName ="ColorPallete", menuName ="MagicSort/Create Color Pallete")]
-    public class ColorPallete : ScriptableObject
+    [CreateAssetMenu(fileName = "ColorPalette", menuName = "MagicSort/Create Color Palette")]
+    public class ColorPalette : ScriptableObject
     {
         public List<Color> colorList;
     }

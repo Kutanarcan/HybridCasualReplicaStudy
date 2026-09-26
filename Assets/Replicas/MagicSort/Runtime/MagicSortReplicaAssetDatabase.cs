@@ -5,7 +5,7 @@ namespace ReplicaProjects.MagicSort
 {
     public static class MagicSortReplicaAssetDatabase
     {
-        // Yeni tema eklemek = buraya bir satır + Resources/Themes/ altına, IMagicSortTheme
+        // Yeni tema eklemek = buraya bir satır + Resources/Themes/ altına, ISortTheme
         // implemente eden bir bileşen taşıyan prefab
         public static GameObject[] ThemePrefabs =
         {

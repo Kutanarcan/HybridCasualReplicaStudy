@@ -1,7 +1,10 @@
 {
     "name": "ReplicaProjects.MagicSort",
+    "rootNamespace": "ReplicaProjects.MagicSort",
     "references": [
-        "ReplicaProjects.Common"
+        "ReplicaProjects.Common",
+        "ReplicaProjects.Common.Core",
+        "ReplicaProjects.MagicSort.Core"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

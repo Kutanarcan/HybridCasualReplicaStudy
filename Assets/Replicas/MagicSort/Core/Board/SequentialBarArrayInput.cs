@@ -1,9 +1,9 @@
-﻿using System;
+using System;
 using System.Runtime.CompilerServices;
-using UnityEngine;
 
 namespace ReplicaProjects.MagicSort
 {
+    /// <summary>Read-only view over the flat board: bar b, slot s lives at b * barHeight + s (slot 0 = bottom).</summary>
     public readonly ref struct SequentialBarArrayInput
     {
         public readonly ReadOnlySpan<int> placementSpanArray;
@@ -14,9 +14,11 @@ namespace ReplicaProjects.MagicSort
 
         public SequentialBarArrayInput(ReadOnlySpan<int> sequentialBarArray, int barHeight)
         {
-            Debug.Assert(barHeight > 0, "barHeight must be positive");
-            Debug.Assert(sequentialBarArray.Length % barHeight == 0,
-                "slots length must be a multiple of barHeight");
+            if (barHeight <= 0)
+                throw new ArgumentOutOfRangeException(nameof(barHeight), "barHeight must be positive");
+            if (sequentialBarArray.Length % barHeight != 0)
+                throw new ArgumentException("slots length must be a multiple of barHeight", nameof(sequentialBarArray));
+
             placementSpanArray = sequentialBarArray;
             this.barHeight = barHeight;
         }
