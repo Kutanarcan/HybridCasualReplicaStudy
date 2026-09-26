@@ -5,8 +5,8 @@ Each replica keeps its game rules in a pure C# (Unity-free) layer, with Unity ac
 
 | Replica | Mechanic | Scene | Gameplay |
 |---|---|---|---|
-| **Arrows** | Tap an arrow whose path is clear and it leaves the board. Tapping a blocked arrow costs a life (3 lives). Clear every arrow to win. | `Assets/Replicas/Arrows/ArrowsClone.unity` | <img src="Docs/Media/arrows.gif" width="240" alt="Arrows gameplay"> |
-| **Magic Sort** | Color sorting: move the top same-color group onto an empty bar or a bar with the same top color. Two themes (Bolt / Tube), switchable mid-game. | `Assets/Replicas/MagicSort/SortReplica.unity` | <img src="Docs/Media/magic-sort.gif" width="240" alt="Magic Sort gameplay"> |
+| **Arrows** | Tap an arrow whose path is clear and it leaves the board. Tapping a blocked arrow costs a life (3 lives). Clear every arrow to win. | [`ArrowsClone`](Assets/Replicas/Arrows/ArrowsClone.unity) | <img src="Docs/Media/arrows.gif" width="240" alt="Arrows gameplay"> |
+| **Magic Sort** | Color sorting: move the top same-color group onto an empty bar or a bar with the same top color. Two themes (Bolt / Tube), switchable mid-game. | [`SortReplica`](Assets/Replicas/MagicSort/SortReplica.unity) | <img src="Docs/Media/magic-sort.gif" width="240" alt="Magic Sort gameplay"> |
 
 ## Requirements
 
